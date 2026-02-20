@@ -1,0 +1,207 @@
+window.BENCHMARK_DATA = {
+  "lastUpdate": 1771621868242,
+  "repoUrl": "https://github.com/slartibardfast/UDPspeeder",
+  "entries": {
+    "UDPspeeder Benchmarks": [
+      {
+        "commit": {
+          "author": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "committer": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "distinct": true,
+          "id": "107d3e4631f6050bc8c00b210fd9ad5abc7c5a91",
+          "message": "Add CI static builds and profiling script for target hardware\n\nRework CI into test + build-static jobs. Build bench/test/production\nbinaries for x86_64 (g++ -static) and aarch64 (cross-compile), upload\nas downloadable artifacts with a POSIX sh profiling script.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-20T20:55:20Z",
+          "tree_id": "f601aa62c80b71d7724ce807bda37df1a6c3e918",
+          "url": "https://github.com/slartibardfast/UDPspeeder/commit/107d3e4631f6050bc8c00b210fd9ad5abc7c5a91"
+        },
+        "date": 1771621867968,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "addmul1/64B",
+            "value": 11.3396,
+            "unit": "ns/op"
+          },
+          {
+            "name": "addmul1/256B",
+            "value": 12.317,
+            "unit": "ns/op"
+          },
+          {
+            "name": "addmul1/1024B",
+            "value": 25.9689,
+            "unit": "ns/op"
+          },
+          {
+            "name": "addmul1/1500B",
+            "value": 39.569,
+            "unit": "ns/op"
+          },
+          {
+            "name": "rs_encode/k5/8/1500B",
+            "value": 660.858,
+            "unit": "ns/op"
+          },
+          {
+            "name": "rs_encode/k10/15/1500B",
+            "value": 2187.85,
+            "unit": "ns/op"
+          },
+          {
+            "name": "rs_decode/k5/8/1500B",
+            "value": 1320.81,
+            "unit": "ns/op"
+          },
+          {
+            "name": "rs_decode/k10/15/1500B",
+            "value": 3508.08,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32_old/64B",
+            "value": 18.6404,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32_old/256B",
+            "value": 69.2796,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32_old/1024B",
+            "value": 270.965,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32_old/1500B",
+            "value": 452.563,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_sw/64B",
+            "value": 20.9314,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_sw/256B",
+            "value": 106.208,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_sw/1024B",
+            "value": 453.002,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_sw/1500B",
+            "value": 669.198,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_hw/64B",
+            "value": 4.96518,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_hw/256B",
+            "value": 16.7595,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_hw/1024B",
+            "value": 109.243,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_hw/1500B",
+            "value": 164.235,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c/64B",
+            "value": 4.65665,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c/256B",
+            "value": 16.7523,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c/1024B",
+            "value": 109.262,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c/1500B",
+            "value": 164.27,
+            "unit": "ns/op"
+          },
+          {
+            "name": "do_cook/64B",
+            "value": 215.789,
+            "unit": "ns/op"
+          },
+          {
+            "name": "do_cook/256B",
+            "value": 246.746,
+            "unit": "ns/op"
+          },
+          {
+            "name": "do_cook/1024B",
+            "value": 645.381,
+            "unit": "ns/op"
+          },
+          {
+            "name": "do_cook/1500B",
+            "value": 542.282,
+            "unit": "ns/op"
+          },
+          {
+            "name": "de_cook/64B",
+            "value": 69.8399,
+            "unit": "ns/op"
+          },
+          {
+            "name": "de_cook/256B",
+            "value": 91.3933,
+            "unit": "ns/op"
+          },
+          {
+            "name": "de_cook/1024B",
+            "value": 281.538,
+            "unit": "ns/op"
+          },
+          {
+            "name": "de_cook/1500B",
+            "value": 368.904,
+            "unit": "ns/op"
+          },
+          {
+            "name": "cook_crc32_only/1500B",
+            "value": 206.988,
+            "unit": "ns/op"
+          },
+          {
+            "name": "cook_obscure_only/1500B",
+            "value": 313.495,
+            "unit": "ns/op"
+          },
+          {
+            "name": "cook_xor_only/1500B",
+            "value": 135.706,
+            "unit": "ns/op"
+          }
+        ]
+      }
+    ]
+  }
+}
