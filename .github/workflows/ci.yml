@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [branch_libev, master]
+    branches: [branch_libev, master, baseline]
   pull_request:
     branches: [branch_libev, master]
 
@@ -29,7 +29,7 @@ jobs:
         run: ./bench_udpspeeder --json
 
       - name: Store benchmark results
-        if: github.ref == 'refs/heads/branch_libev'
+        if: github.ref == 'refs/heads/branch_libev' || github.ref == 'refs/heads/baseline'
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: UDPspeeder Benchmarks
@@ -41,32 +41,3 @@ jobs:
           comment-on-alert: true
           fail-on-alert: false
           benchmark-data-dir-path: dev/bench
-
-  cross-compile:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - name: x86_64-musl
-            target: bench-musl
-            packages: musl-tools
-            make_args: ""
-          - name: arm-linux-gnueabihf
-            target: bench-cross
-            packages: g++-arm-linux-gnueabihf
-            make_args: "CC=arm-linux-gnueabihf-g++"
-          - name: aarch64-linux-gnu
-            target: bench-cross
-            packages: g++-aarch64-linux-gnu
-            make_args: "CC=aarch64-linux-gnu-g++"
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install cross-compiler
-        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.packages }}
-
-      - name: Build (${{ matrix.name }})
-        run: make ${{ matrix.target }} ${{ matrix.make_args }}
-
-      - name: Verify binary
-        run: file bench_udpspeeder_*
