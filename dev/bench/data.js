@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772059276392,
+  "lastUpdate": 1772062302555,
   "repoUrl": "https://github.com/slartibardfast/UDPspeeder",
   "entries": {
     "UDPspeeder Benchmarks": [
@@ -2332,6 +2332,205 @@ window.BENCHMARK_DATA = {
           {
             "name": "cook_xor_only/1500B",
             "value": 80.0724,
+            "unit": "ns/op"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "committer": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "distinct": true,
+          "id": "452493e388a7669313f283571fc21551686460a2",
+          "message": "Add io_uring multishot receive integration\n\nEliminate per-packet recvfrom/recv syscalls on Linux 6.0+ by using\nio_uring with multishot recv/recvmsg and provided buffer rings.\nShared-memory SQ/CQ rings avoid user↔kernel context switches; one\nmultishot SQE serves many CQEs without resubmission.\n\nNew files:\n- io_uring_recv.h/cpp: raw syscall wrappers (no liburing dependency),\n  buffer ring management, CQE parsing, multishot recv/recvmsg API\n\nIntegration:\n- tunnel_client.cpp: extract client_process_remote_packet(), add\n  client_uring_cb() dispatching by tag type, conditionalize init\n- tunnel_server.cpp: extract server_process_remote_packet(), add\n  server_uring_cb(), conditionalize init + new-connection path\n- connection.cpp: cancel uring multishot on conv expiry\n- makefile: add io_uring_recv.cpp to SOURCES0\n\nRuntime fallback: uring_init() probes io_uring_setup + PBUF_RING\nregistration. On failure (kernel <6.0 or missing features), falls\nback transparently to existing libev ev_io callbacks.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-25T23:30:46Z",
+          "tree_id": "0f3a3edb75ff25caeff3a0418bc1b6892ad00239",
+          "url": "https://github.com/slartibardfast/UDPspeeder/commit/452493e388a7669313f283571fc21551686460a2"
+        },
+        "date": 1772062301789,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "addmul1/64B",
+            "value": 11.2394,
+            "unit": "ns/op"
+          },
+          {
+            "name": "addmul1/256B",
+            "value": 11.8132,
+            "unit": "ns/op"
+          },
+          {
+            "name": "addmul1/1024B",
+            "value": 26.8133,
+            "unit": "ns/op"
+          },
+          {
+            "name": "addmul1/1500B",
+            "value": 38.7064,
+            "unit": "ns/op"
+          },
+          {
+            "name": "rs_encode/k5/8/1500B",
+            "value": 684.858,
+            "unit": "ns/op"
+          },
+          {
+            "name": "rs_encode/k10/15/1500B",
+            "value": 2147.54,
+            "unit": "ns/op"
+          },
+          {
+            "name": "rs_decode/k5/8/1500B",
+            "value": 1321.73,
+            "unit": "ns/op"
+          },
+          {
+            "name": "rs_decode/k10/15/1500B",
+            "value": 3465.04,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32_old/64B",
+            "value": 18.6405,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32_old/256B",
+            "value": 69.0509,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32_old/1024B",
+            "value": 269.961,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32_old/1500B",
+            "value": 451.036,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_sw/64B",
+            "value": 20.4873,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_sw/256B",
+            "value": 102.78,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_sw/1024B",
+            "value": 440.674,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_sw/1500B",
+            "value": 650.463,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_hw/64B",
+            "value": 4.65854,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_hw/256B",
+            "value": 16.9859,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_hw/1024B",
+            "value": 109.775,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_hw/1500B",
+            "value": 163.738,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c/64B",
+            "value": 4.65621,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c/256B",
+            "value": 16.7611,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c/1024B",
+            "value": 109.294,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c/1500B",
+            "value": 163.58,
+            "unit": "ns/op"
+          },
+          {
+            "name": "do_cook/64B",
+            "value": 152.656,
+            "unit": "ns/op"
+          },
+          {
+            "name": "do_cook/256B",
+            "value": 170.175,
+            "unit": "ns/op"
+          },
+          {
+            "name": "do_cook/1024B",
+            "value": 304.943,
+            "unit": "ns/op"
+          },
+          {
+            "name": "do_cook/1500B",
+            "value": 375.393,
+            "unit": "ns/op"
+          },
+          {
+            "name": "de_cook/64B",
+            "value": 36.5934,
+            "unit": "ns/op"
+          },
+          {
+            "name": "de_cook/256B",
+            "value": 61.3684,
+            "unit": "ns/op"
+          },
+          {
+            "name": "de_cook/1024B",
+            "value": 185.528,
+            "unit": "ns/op"
+          },
+          {
+            "name": "de_cook/1500B",
+            "value": 254.808,
+            "unit": "ns/op"
+          },
+          {
+            "name": "cook_crc32_only/1500B",
+            "value": 207.03,
+            "unit": "ns/op"
+          },
+          {
+            "name": "cook_obscure_only/1500B",
+            "value": 210.342,
+            "unit": "ns/op"
+          },
+          {
+            "name": "cook_xor_only/1500B",
+            "value": 79.9056,
             "unit": "ns/op"
           }
         ]
