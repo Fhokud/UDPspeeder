@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772042071140,
+  "lastUpdate": 1772042353251,
   "repoUrl": "https://github.com/slartibardfast/UDPspeeder",
   "entries": {
     "UDPspeeder Throughput": [
@@ -33,6 +33,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput/fec-20-10",
             "value": 54.8,
+            "unit": "MB/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "committer": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "distinct": true,
+          "id": "39657027903412eb625c7f6ce9d83c74ed9475a5",
+          "message": "Add baseline results to throughput benchmark tracking\n\nBoth current and baseline throughput are now stored as separate\nseries (throughput/* and baseline/throughput/*) so they appear\nside by side on the gh-pages chart.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-25T17:56:48Z",
+          "tree_id": "1b3c6d86527c5111b1e1c8bc82d232838cb71502",
+          "url": "https://github.com/slartibardfast/UDPspeeder/commit/39657027903412eb625c7f6ce9d83c74ed9475a5"
+        },
+        "date": 1772042352215,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput/no-fec",
+            "value": 83.8,
+            "unit": "MB/s"
+          },
+          {
+            "name": "throughput/fec-20-10",
+            "value": 57,
+            "unit": "MB/s"
+          },
+          {
+            "name": "baseline/throughput/no-fec",
+            "value": 69.2,
+            "unit": "MB/s"
+          },
+          {
+            "name": "baseline/throughput/fec-20-10",
+            "value": 37,
             "unit": "MB/s"
           }
         ]
