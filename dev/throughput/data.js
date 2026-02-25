@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772059600939,
+  "lastUpdate": 1772063360312,
   "repoUrl": "https://github.com/slartibardfast/UDPspeeder",
   "entries": {
     "UDPspeeder Throughput": [
@@ -87,6 +87,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "baseline/throughput/fec-20-10",
             "value": 353,
+            "unit": "Mbps"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "committer": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "distinct": true,
+          "id": "a623c5d5533f7958715980b5563407964677b7cf",
+          "message": "Fix io_uring build: C++ atomics, remove struct fallbacks\n\n- Replace C11 _Atomic/stdatomic.h with GCC __atomic_store_n/__atomic_load_n\n  builtins which work in C++11\n- Remove struct fallback definitions (io_uring_buf, io_uring_buf_ring,\n  io_uring_buf_reg, io_uring_recvmsg_out) that conflict with kernel headers\n  on Ubuntu 24.04 — require kernel 6.0+ headers for compilation\n- Fix buf_ring_add: br->tail is __u16, use __atomic_store_n directly\n  instead of unsigned* wrapper\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-25T23:37:13Z",
+          "tree_id": "00d4449a24487e0c1f85ecd40ae8d0b73ebfa764",
+          "url": "https://github.com/slartibardfast/UDPspeeder/commit/a623c5d5533f7958715980b5563407964677b7cf"
+        },
+        "date": 1772063359973,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput/no-fec",
+            "value": 0,
+            "unit": "Mbps"
+          },
+          {
+            "name": "throughput/fec-20-10",
+            "value": 0,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/no-fec",
+            "value": 607.4,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/fec-20-10",
+            "value": 362.4,
             "unit": "Mbps"
           }
         ]
