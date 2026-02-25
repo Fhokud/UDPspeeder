@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UDPspeeder Tunnel Throughput</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+         background: #0d1117; color: #c9d1d9; padding: 2rem; max-width: 960px; margin: 0 auto; }
+  h1 { color: #58a6ff; margin-bottom: 0.3rem; font-size: 1.5rem; }
+  .subtitle { color: #8b949e; margin-bottom: 2rem; font-size: 0.9rem; }
+  h2 { color: #58a6ff; margin: 2rem 0 1rem; font-size: 1.1rem; border-bottom: 1px solid #21262d; padding-bottom: 0.5rem; }
+  .card { background: #161b22; border: 1px solid #21262d; border-radius: 6px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .bar-row { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.5rem; }
+  .bar-label { width: 80px; font-size: 0.8rem; color: #8b949e; text-align: right; flex-shrink: 0; }
+  .bar-track { flex: 1; background: #21262d; border-radius: 3px; height: 32px; position: relative; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; display: flex; align-items: center; padding: 0 12px;
+              font-size: 0.85rem; font-weight: 600; color: #fff; white-space: nowrap; }
+  .bar-fill.baseline { background: #f85149; opacity: 0.8; }
+  .bar-fill.current { background: #3fb950; opacity: 0.9; }
+  .improvement { text-align: center; margin-top: 0.8rem; }
+  .improvement-value { font-size: 2rem; font-weight: 700; color: #3fb950; }
+  .improvement-label { font-size: 0.8rem; color: #8b949e; }
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .stat { background: #161b22; border: 1px solid #21262d; border-radius: 6px; padding: 1.2rem; text-align: center; }
+  .stat-value { font-size: 2rem; font-weight: 700; color: #3fb950; }
+  .stat-label { font-size: 0.8rem; color: #8b949e; margin-top: 0.3rem; }
+  .legend { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; font-size: 0.85rem; }
+  .legend-item { display: flex; align-items: center; gap: 0.4rem; }
+  .legend-swatch { width: 14px; height: 14px; border-radius: 2px; }
+  .legend-swatch.baseline { background: #f85149; opacity: 0.8; }
+  .legend-swatch.current { background: #3fb950; opacity: 0.9; }
+  .topology { background: #161b22; border: 1px solid #21262d; border-radius: 6px; padding: 1rem;
+              font-family: monospace; font-size: 0.8rem; color: #8b949e; margin-bottom: 1.5rem;
+              white-space: pre; overflow-x: auto; line-height: 1.6; }
+  .history-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0;
+                 border-bottom: 1px solid #21262d; font-size: 0.8rem; }
+  .history-row:last-child { border-bottom: none; }
+  .history-commit { width: 80px; flex-shrink: 0; }
+  .history-val { width: 90px; text-align: right; }
+  .history-header { color: #8b949e; font-weight: 600; }
+  .note { color: #8b949e; font-size: 0.75rem; margin-top: 2rem; }
+  a { color: #58a6ff; }
+  #loading { color: #8b949e; font-style: italic; }
+</style>
+</head>
+<body>
+
+<h1>UDPspeeder Tunnel Throughput</h1>
+<p class="subtitle">End-to-end UDP tunnel throughput &mdash; SIMD-optimized vs scalar baseline &mdash; higher is better</p>
+
+<div class="topology">UDP sender ──&gt; speederv2 client (:20002) ──&gt; speederv2 server (:20000) ──&gt; UDP receiver (:20001)
+Loopback 127.0.0.1  &bull;  1400-byte datagrams  &bull;  3 runs, median  &bull;  GitHub Actions (Ubuntu x86_64)</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch baseline"></div> Scalar baseline (<a href="https://github.com/slartibardfast/UDPspeeder/commit/0a87d34">0a87d34</a>)</div>
+  <div class="legend-item"><div class="legend-swatch current"></div> SIMD optimized (latest)</div>
+</div>
+
+<p id="loading">Loading data...</p>
+<div id="content" style="display:none">
+  <div class="summary" id="summary"></div>
+  <h2>No FEC &mdash; raw tunnel (cook pipeline only)</h2>
+  <div class="card" id="nofec-card"></div>
+  <h2>FEC 20:10 &mdash; full Reed-Solomon + cook pipeline</h2>
+  <div class="card" id="fec-card"></div>
+  <h2>Run History</h2>
+  <div class="card" id="history"></div>
+</div>
+
+<p class="note">
+  Measured on shared CI runners; absolute numbers vary between runs. Relative improvement is the stable signal.<br>
+  <a href="index.html">Raw trend charts</a> &middot; <a href="../bench/">Microbenchmarks</a> &middot; <a href="../../">Overview</a>
+</p>
+
+<script src="data.js"></script>
+<script>
+(function() {
+  const entries = window.BENCHMARK_DATA.entries["UDPspeeder Throughput"];
+  if (!entries || !entries.length) { document.getElementById("loading").textContent = "No data yet."; return; }
+
+  // Find latest entry that has baseline data
+  let latest = null;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    if (entries[i].benches.some(b => b.name.startsWith("baseline/"))) { latest = entries[i]; break; }
+  }
+  if (!latest) { document.getElementById("loading").textContent = "No baseline comparison data yet."; return; }
+
+  const val = (name) => { const b = latest.benches.find(x => x.name === name); return b ? b.value : 0; };
+  const pct = (cur, base) => base > 0 ? Math.round((cur / base - 1) * 100) : 0;
+
+  const curNoFec = val("throughput/no-fec"), curFec = val("throughput/fec-20-10");
+  const baseNoFec = val("baseline/throughput/no-fec"), baseFec = val("baseline/throughput/fec-20-10");
+
+  // Summary
+  const sum = document.getElementById("summary");
+  [{v: curNoFec.toFixed(1)+" MB/s", l: "Current (no FEC)"},
+   {v: "+"+pct(curNoFec,baseNoFec)+"%", l: "vs baseline (no FEC)"},
+   {v: curFec.toFixed(1)+" MB/s", l: "Current (FEC 20:10)"},
+   {v: "+"+pct(curFec,baseFec)+"%", l: "vs baseline (FEC)"}
+  ].forEach(s => { sum.innerHTML += `<div class="stat"><div class="stat-value">${s.v}</div><div class="stat-label">${s.l}</div></div>`; });
+
+  // Bar chart
+  function bars(id, cur, base) {
+    const max = Math.max(cur, base) * 1.15;
+    document.getElementById(id).innerHTML = `
+      <div class="bar-row"><div class="bar-label">Baseline</div><div class="bar-track"><div class="bar-fill baseline" style="width:${base/max*100}%">${base.toFixed(1)} MB/s</div></div></div>
+      <div class="bar-row"><div class="bar-label">Current</div><div class="bar-track"><div class="bar-fill current" style="width:${cur/max*100}%">${cur.toFixed(1)} MB/s</div></div></div>
+      <div class="improvement"><div class="improvement-value">+${pct(cur,base)}%</div><div class="improvement-label">throughput improvement</div></div>`;
+  }
+  bars("nofec-card", curNoFec, baseNoFec);
+  bars("fec-card", curFec, baseFec);
+
+  // History
+  const hist = document.getElementById("history");
+  hist.innerHTML = `<div class="history-row">
+    <div class="history-commit history-header">Commit</div>
+    <div class="history-val history-header">No FEC</div>
+    <div class="history-val history-header">FEC</div>
+    <div class="history-val history-header">Base NF</div>
+    <div class="history-val history-header">Base FEC</div></div>`;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i], v = n => { const b=e.benches.find(x=>x.name===n); return b?b.value.toFixed(1):"—"; };
+    hist.innerHTML += `<div class="history-row">
+      <div class="history-commit"><a href="${e.commit.url}">${e.commit.id.slice(0,7)}</a></div>
+      <div class="history-val">${v("throughput/no-fec")}</div>
+      <div class="history-val">${v("throughput/fec-20-10")}</div>
+      <div class="history-val">${v("baseline/throughput/no-fec")}</div>
+      <div class="history-val">${v("baseline/throughput/fec-20-10")}</div></div>`;
+  }
+
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("content").style.display = "block";
+})();
+</script>
+</body>
+</html>
