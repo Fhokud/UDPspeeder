@@ -95,9 +95,9 @@ Loopback 127.0.0.1  &bull;  1400-byte datagrams  &bull;  3 runs, median  &bull; 
 
   // Summary
   const sum = document.getElementById("summary");
-  [{v: curNoFec.toFixed(1)+" MB/s", l: "Current (no FEC)"},
+  [{v: curNoFec.toFixed(1)+" Mbps", l: "Current (no FEC)"},
    {v: "+"+pct(curNoFec,baseNoFec)+"%", l: "vs baseline (no FEC)"},
-   {v: curFec.toFixed(1)+" MB/s", l: "Current (FEC 20:10)"},
+   {v: curFec.toFixed(1)+" Mbps", l: "Current (FEC 20:10)"},
    {v: "+"+pct(curFec,baseFec)+"%", l: "vs baseline (FEC)"}
   ].forEach(s => { sum.innerHTML += `<div class="stat"><div class="stat-value">${s.v}</div><div class="stat-label">${s.l}</div></div>`; });
 
@@ -105,8 +105,8 @@ Loopback 127.0.0.1  &bull;  1400-byte datagrams  &bull;  3 runs, median  &bull; 
   function bars(id, cur, base) {
     const max = Math.max(cur, base) * 1.15;
     document.getElementById(id).innerHTML = `
-      <div class="bar-row"><div class="bar-label">Baseline</div><div class="bar-track"><div class="bar-fill baseline" style="width:${base/max*100}%">${base.toFixed(1)} MB/s</div></div></div>
-      <div class="bar-row"><div class="bar-label">Current</div><div class="bar-track"><div class="bar-fill current" style="width:${cur/max*100}%">${cur.toFixed(1)} MB/s</div></div></div>
+      <div class="bar-row"><div class="bar-label">Baseline</div><div class="bar-track"><div class="bar-fill baseline" style="width:${base/max*100}%">${base.toFixed(1)} Mbps</div></div></div>
+      <div class="bar-row"><div class="bar-label">Current</div><div class="bar-track"><div class="bar-fill current" style="width:${cur/max*100}%">${cur.toFixed(1)} Mbps</div></div></div>
       <div class="improvement"><div class="improvement-value">+${pct(cur,base)}%</div><div class="improvement-label">throughput improvement</div></div>`;
   }
   bars("nofec-card", curNoFec, baseNoFec);
