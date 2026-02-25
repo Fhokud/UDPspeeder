@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UDPspeeder Microbenchmarks — Baseline vs Current</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+         background: #0d1117; color: #c9d1d9; padding: 2rem; max-width: 960px; margin: 0 auto; }
+  h1 { color: #58a6ff; margin-bottom: 0.3rem; font-size: 1.5rem; }
+  .subtitle { color: #8b949e; margin-bottom: 2rem; font-size: 0.9rem; }
+  h2 { color: #58a6ff; margin: 2rem 0 0.8rem; font-size: 1.1rem; border-bottom: 1px solid #21262d; padding-bottom: 0.5rem; }
+  .legend { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; font-size: 0.85rem; }
+  .legend-item { display: flex; align-items: center; gap: 0.4rem; }
+  .legend-swatch { width: 14px; height: 14px; border-radius: 2px; }
+  .legend-swatch.before { background: #f85149; opacity: 0.7; }
+  .legend-swatch.after  { background: #3fb950; opacity: 0.9; }
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .stat { background: #161b22; border: 1px solid #21262d; border-radius: 6px; padding: 1rem; text-align: center; }
+  .stat-value { font-size: 1.8rem; font-weight: 700; color: #3fb950; }
+  .stat-label { font-size: 0.75rem; color: #8b949e; margin-top: 0.3rem; }
+  .row { display: flex; align-items: center; margin: 0.4rem 0; gap: 0.5rem; }
+  .label { width: 210px; font-size: 0.82rem; color: #8b949e; flex-shrink: 0; text-align: right; padding-right: 0.8rem; }
+  .bars { flex: 1; position: relative; height: 28px; }
+  .bar { height: 13px; border-radius: 2px; position: absolute; left: 0; min-width: 2px; }
+  .bar.before { top: 0; background: #f85149; opacity: 0.7; }
+  .bar.after  { top: 15px; background: #3fb950; opacity: 0.9; }
+  .value { width: 200px; font-size: 0.78rem; color: #c9d1d9; flex-shrink: 0; display: flex; gap: 0.6rem; align-items: center; }
+  .speedup { color: #3fb950; font-weight: 700; font-size: 0.85rem; }
+  .note { color: #8b949e; font-size: 0.75rem; margin-top: 2rem; }
+  a { color: #58a6ff; }
+  #loading { color: #8b949e; font-style: italic; }
+</style>
+</head>
+<body>
+
+<h1>UDPspeeder Microbenchmarks</h1>
+<p class="subtitle">Scalar baseline vs SIMD-optimized &mdash; lower is better (ns/op)</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch before"></div> Scalar baseline (<a href="https://github.com/slartibardfast/UDPspeeder/commit/0a87d34">0a87d34</a>)</div>
+  <div class="legend-item"><div class="legend-swatch after"></div> SIMD optimized (latest)</div>
+</div>
+
+<p id="loading">Loading data...</p>
+<div id="content" style="display:none">
+  <div class="summary" id="summary"></div>
+  <div id="charts"></div>
+</div>
+
+<p class="note">
+  Data from GitHub Actions CI (Ubuntu x86_64 shared runner). Lower is better.<br>
+  <a href="index.html">Raw trend charts</a> &middot; <a href="../throughput/dashboard.html">Tunnel throughput</a> &middot; <a href="../../">Overview</a>
+</p>
+
+<script src="data.js"></script>
+<script>
+(function() {
+  const entries = window.BENCHMARK_DATA.entries["UDPspeeder Benchmarks"];
+  if (!entries || !entries.length) { document.getElementById("loading").textContent = "No data yet."; return; }
+
+  // Find baseline (0a87d34) and latest
+  const baseline = entries.find(e => e.commit.id.startsWith("0a87d34"));
+  const latest = entries[entries.length - 1];
+  if (!baseline) { document.getElementById("loading").textContent = "Baseline commit not found."; return; }
+
+  const bMap = {}, lMap = {};
+  baseline.benches.forEach(b => bMap[b.name] = b.value);
+  latest.benches.forEach(b => lMap[b.name] = b.value);
+
+  const fmt = v => v >= 1000 ? (v/1000).toFixed(1) + "\u00b5s" : v.toFixed(0) + "ns";
+
+  // Sections
+  const sections = [
+    { title: "GF(2\u00b8) Multiply-Accumulate (addmul1)",
+      desc: "Inner loop of Reed-Solomon \u2014 SSSE3/AVX2 nibble lookup",
+      keys: ["addmul1/64B","addmul1/256B","addmul1/1024B","addmul1/1500B"] },
+    { title: "Reed-Solomon Encode",
+      keys: ["rs_encode/k5/8/1500B","rs_encode/k10/15/1500B"] },
+    { title: "Reed-Solomon Decode",
+      keys: ["rs_decode/k5/8/1500B","rs_decode/k10/15/1500B"] },
+    { title: "CRC32C (hardware SSE4.2 vs old CRC32)",
+      keys: ["crc32/1500B"],
+      bKeys: ["crc32_old/1500B"],
+      extra: [
+        {key: "crc32c_hw/1500B", bKey: "crc32c_hw/1500B", label: "crc32c_hw/1500B"},
+        {key: "crc32c_sw/1500B", bKey: "crc32c_sw/1500B", label: "crc32c_sw/1500B"},
+        {key: "crc32_old/1500B", bKey: "crc32_old/1500B", label: "crc32_old/1500B"}
+      ]},
+    { title: "Packet Cook Pipeline",
+      keys: ["do_cook/1500B","de_cook/1500B","cook_crc32_only/1500B","cook_obscure_only/1500B","cook_xor_only/1500B"],
+      noBaseline: true }
+  ];
+
+  // Summary stats
+  const sumEl = document.getElementById("summary");
+  const highlights = [
+    {name: "addmul1/1500B", label: "addmul1 1500B"},
+    {name: "rs_encode/k10/15/1500B", label: "rs_encode k10/15"},
+    {name: "rs_decode/k10/15/1500B", label: "rs_decode k10/15"}
+  ];
+  for (const h of highlights) {
+    const b = bMap[h.name], l = lMap[h.name];
+    if (b && l) {
+      const sp = (b/l).toFixed(0);
+      sumEl.innerHTML += `<div class="stat"><div class="stat-value">${sp}x</div><div class="stat-label">${h.label}</div></div>`;
+    }
+  }
+  // CRC32 improvement
+  if (bMap["crc32_old/1500B"] && lMap["crc32c/1500B"]) {
+    const sp = (bMap["crc32_old/1500B"] / lMap["crc32c/1500B"]).toFixed(1);
+    sumEl.innerHTML += `<div class="stat"><div class="stat-value">${sp}x</div><div class="stat-label">crc32c vs crc32_old</div></div>`;
+  }
+
+  const container = document.getElementById("charts");
+
+  for (const sec of sections) {
+    const h2 = document.createElement("h2");
+    h2.textContent = sec.title;
+    container.appendChild(h2);
+
+    const keys = sec.keys;
+    const bKeys = sec.bKeys || keys;
+
+    // Determine max for scaling
+    const allVals = [];
+    for (let i = 0; i < keys.length; i++) {
+      allVals.push(bMap[bKeys[i]] || 0);
+      allVals.push(lMap[keys[i]] || 0);
+    }
+    if (sec.extra) sec.extra.forEach(e => { allVals.push(bMap[e.bKey]||0); allVals.push(lMap[e.key]||0); });
+    const maxVal = Math.max(...allVals);
+
+    function addRow(label, bVal, lVal) {
+      const speedup = bVal > 0 && lVal > 0 ? bVal / lVal : 0;
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `
+        <div class="label">${label}</div>
+        <div class="bars">
+          <div class="bar before" style="width:${bVal/maxVal*100}%" title="${bVal.toFixed(1)} ns/op"></div>
+          <div class="bar after" style="width:${lVal/maxVal*100}%" title="${lVal.toFixed(1)} ns/op"></div>
+        </div>
+        <div class="value">
+          <span>${fmt(bVal)} \u2192 ${fmt(lVal)}</span>
+          ${speedup > 1.1 ? `<span class="speedup">${speedup.toFixed(1)}x</span>` : ""}
+        </div>`;
+      container.appendChild(row);
+    }
+
+    for (let i = 0; i < keys.length; i++) {
+      const bVal = bMap[bKeys[i]] || 0;
+      const lVal = lMap[keys[i]] || 0;
+      if (sec.noBaseline) {
+        // Show only current (no baseline for cook benchmarks)
+        const row = document.createElement("div");
+        row.className = "row";
+        row.innerHTML = `
+          <div class="label">${keys[i]}</div>
+          <div class="bars"><div class="bar after" style="width:${lVal/maxVal*100}%" title="${lVal.toFixed(1)} ns/op"></div></div>
+          <div class="value"><span>${fmt(lVal)}</span></div>`;
+        container.appendChild(row);
+      } else {
+        addRow(keys[i], bVal, lVal);
+      }
+    }
+    if (sec.extra) sec.extra.forEach(e => addRow(e.label, bMap[e.bKey]||0, lMap[e.key]||0));
+  }
+
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("content").style.display = "block";
+})();
+</script>
+</body>
+</html>
