@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772146444799,
+  "lastUpdate": 1772148614296,
   "repoUrl": "https://github.com/slartibardfast/UDPspeeder",
   "entries": {
     "UDPspeeder Throughput": [
@@ -571,6 +571,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "baseline/throughput/fec-20-10",
             "value": 360.5,
+            "unit": "Mbps"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "committer": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "distinct": true,
+          "id": "2eac606992b16593e75795ff087636323ff36959",
+          "message": "Document PPC e500v2 results and cross-architecture notes\n\n- Section 14: SPE XOR assembly, QEMU benchmarks, gotchas\n- Cross-architecture notes: x86_64, ARMv8, e500v2, MIPS, RISC-V\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-26T23:24:02Z",
+          "tree_id": "29e0e55a84cdf4de6adce48949797967ee895e78",
+          "url": "https://github.com/slartibardfast/UDPspeeder/commit/2eac606992b16593e75795ff087636323ff36959"
+        },
+        "date": 1772148613427,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput/no-fec",
+            "value": 975.5,
+            "unit": "Mbps"
+          },
+          {
+            "name": "throughput/fec-20-10",
+            "value": 660.4,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/no-fec",
+            "value": 644.9,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/fec-20-10",
+            "value": 366,
             "unit": "Mbps"
           }
         ]
