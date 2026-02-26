@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772139860001,
+  "lastUpdate": 1772140809778,
   "repoUrl": "https://github.com/slartibardfast/UDPspeeder",
   "entries": {
     "UDPspeeder Throughput": [
@@ -483,6 +483,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "baseline/throughput/fec-20-10",
             "value": 363.5,
+            "unit": "Mbps"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "committer": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "distinct": true,
+          "id": "6044a173b081b34162b8051b262fea2b80bd39d0",
+          "message": "Update OPTIMIZATION.md with full optimization series results\n\nDocument optimizations 9-13 (sendmmsg batching, flat decode arrays,\nzero-copy recv, anti-replay table, flat group table with bitmap).\nAdd end-to-end throughput results (+48-76% no-fec, +81-113% fec-20:10\nvs baseline). Analyze diminishing returns and remaining architectural\nmemcpy bottleneck.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-26T21:14:15Z",
+          "tree_id": "34aba49f1c6613fb10d2afd7d87569a48c47da02",
+          "url": "https://github.com/slartibardfast/UDPspeeder/commit/6044a173b081b34162b8051b262fea2b80bd39d0"
+        },
+        "date": 1772140808695,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput/no-fec",
+            "value": 943.9,
+            "unit": "Mbps"
+          },
+          {
+            "name": "throughput/fec-20-10",
+            "value": 645.7,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/no-fec",
+            "value": 640.9,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/fec-20-10",
+            "value": 358,
             "unit": "Mbps"
           }
         ]
