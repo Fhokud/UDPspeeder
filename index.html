@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UDPspeeder SIMD Optimization Results</title>
+<title>UDPspeeder Optimization Results</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
@@ -11,32 +11,54 @@
   h1 { color: #58a6ff; margin-bottom: 0.3rem; font-size: 1.5rem; }
   .subtitle { color: #8b949e; margin-bottom: 2rem; font-size: 0.9rem; }
   h2 { color: #58a6ff; margin: 2rem 0 1rem; font-size: 1.1rem; border-bottom: 1px solid #21262d; padding-bottom: 0.5rem; }
+  h3 { color: #c9d1d9; margin: 1.5rem 0 0.5rem; font-size: 0.95rem; }
   .row { display: flex; align-items: center; margin: 0.4rem 0; gap: 0.5rem; }
   .label { width: 220px; font-size: 0.85rem; color: #8b949e; flex-shrink: 0; text-align: right; padding-right: 0.8rem; }
   .bars { flex: 1; position: relative; height: 28px; }
   .bar { height: 13px; border-radius: 2px; position: absolute; left: 0; min-width: 2px; }
   .bar.before { top: 0; background: #f85149; opacity: 0.7; }
   .bar.after  { top: 15px; background: #3fb950; opacity: 0.9; }
-  .value { width: 180px; font-size: 0.8rem; color: #c9d1d9; flex-shrink: 0; display: flex; gap: 0.6rem; align-items: center; }
+  .bar.ppc-old { top: 0; background: #f85149; opacity: 0.7; }
+  .bar.ppc-new { top: 15px; background: #d2a8ff; opacity: 0.9; }
+  .value { width: 200px; font-size: 0.8rem; color: #c9d1d9; flex-shrink: 0; display: flex; gap: 0.6rem; align-items: center; }
   .speedup { color: #3fb950; font-weight: 700; font-size: 0.9rem; }
   .legend { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; font-size: 0.85rem; }
   .legend-item { display: flex; align-items: center; gap: 0.4rem; }
   .legend-swatch { width: 14px; height: 14px; border-radius: 2px; }
   .legend-swatch.before { background: #f85149; opacity: 0.7; }
   .legend-swatch.after  { background: #3fb950; opacity: 0.9; }
+  .legend-swatch.ppc-old { background: #f85149; opacity: 0.7; }
+  .legend-swatch.ppc-new { background: #d2a8ff; opacity: 0.9; }
   .summary { background: #161b22; border: 1px solid #21262d; border-radius: 6px; padding: 1.2rem; margin-bottom: 1.5rem; }
   .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
   .stat { text-align: center; }
   .stat-value { font-size: 1.8rem; font-weight: 700; color: #3fb950; }
+  .stat-value.purple { color: #d2a8ff; }
   .stat-label { font-size: 0.8rem; color: #8b949e; }
   .note { color: #8b949e; font-size: 0.75rem; margin-top: 2rem; }
+  .section-sep { border: none; border-top: 2px solid #21262d; margin: 3rem 0; }
+  .dashlinks { background: #161b22; border: 1px solid #21262d; border-radius: 6px; padding: 1rem; margin: 1rem 0; font-size: 0.85rem; }
+  .dashlinks a { margin-right: 1.5rem; }
   a { color: #58a6ff; }
 </style>
 </head>
 <body>
 
-<h1>UDPspeeder SIMD Optimization Results</h1>
-<p class="subtitle">GitHub Actions CI runner (Ubuntu, x86_64) &mdash; lower is better</p>
+<h1>UDPspeeder Optimization Results</h1>
+<p class="subtitle">Microbenchmark comparison dashboards &mdash; lower is better (ns/op)</p>
+
+<div class="dashlinks">
+  <strong>Trend dashboards:</strong>
+  <a href="dev/bench/">x86_64 microbench</a>
+  <a href="dev/throughput/">x86_64 throughput</a>
+  <a href="dev/bench-powerpc/">PPC e500v2 (QEMU)</a>
+  <a href="dev/bench-powerpc-baseline/">PPC e500v2 baseline</a>
+</div>
+
+<!-- ===== x86_64: SIMD vs Scalar ===== -->
+
+<h2>x86_64: SIMD Optimized vs Scalar Baseline</h2>
+<p class="subtitle">GitHub Actions CI runner &mdash; AVX2 + SSE4.2 vs scalar</p>
 
 <div class="summary">
   <div class="summary-grid">
@@ -64,24 +86,63 @@
   <div class="legend-item"><div class="legend-swatch after"></div> SIMD optimized</div>
 </div>
 
-<div id="charts"></div>
+<div id="x86charts"></div>
 
 <p class="note">
-  Data from GitHub Actions CI (2-core shared runner). Real hardware numbers will differ.<br>
   Baseline: commit <a href="https://github.com/slartibardfast/UDPspeeder/commit/0a87d34">0a87d34</a> (scalar) &mdash;
-  Optimized: commit <a href="https://github.com/slartibardfast/UDPspeeder/commit/107d3e4">107d3e4</a> (SSSE3/AVX2 + CRC32C SSE4.2)<br>
-  Dashboards: <a href="dev/bench/dashboard.html">microbenchmarks</a> &middot; <a href="dev/throughput/dashboard.html">tunnel throughput</a> &middot; Trends: <a href="dev/bench/">bench</a> &middot; <a href="dev/throughput/">throughput</a>
+  Optimized: commit <a href="https://github.com/slartibardfast/UDPspeeder/commit/2f0ac6a">2f0ac6a</a> (AVX2/SSSE3 + CRC32C SSE4.2 + pre-alloc)
+</p>
+
+<hr class="section-sep">
+
+<!-- ===== PowerPC e500v2 ===== -->
+
+<h2>PowerPC e500v2: CRC32C + SPE XOR vs Baseline (QEMU)</h2>
+<p class="subtitle">qemu-ppc-static -cpu e500v2 on GitHub Actions &mdash; target: TP-Link TL-WDR4900</p>
+
+<div class="summary">
+  <div class="summary-grid">
+    <div class="stat">
+      <div class="stat-value purple">1.4x</div>
+      <div class="stat-label">crc32c vs crc32_old</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value purple">1.5x</div>
+      <div class="stat-label">rs_encode k10/15</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value purple">1.3x</div>
+      <div class="stat-label">rs_decode k10/15</div>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch ppc-old"></div> Baseline (byte-at-a-time XOR, old CRC32)</div>
+  <div class="legend-item"><div class="legend-swatch ppc-new"></div> Current (SPE XOR, CRC32C, pre-alloc)</div>
+</div>
+
+<div id="ppccharts"></div>
+
+<p class="note">
+  PPC numbers via QEMU emulation &mdash; absolute timings do not reflect real hardware performance.<br>
+  Baseline: commit <a href="https://github.com/slartibardfast/UDPspeeder/commit/66df8ad">66df8ad</a> &mdash;
+  Current: commit <a href="https://github.com/slartibardfast/UDPspeeder/commit/2f0ac6a">2f0ac6a</a><br>
+  SPE (Signal Processing Extension): 64-bit <code>evldd</code>/<code>evxor</code>/<code>evstdd</code> for XOR cook.
+  No AltiVec, no hardware CRC &mdash; addmul1 and CRC32C are software-only.<br>
+  Trend: <a href="dev/bench-powerpc/">current</a> &middot; <a href="dev/bench-powerpc-baseline/">baseline</a>
 </p>
 
 <script>
-const baseline = {
+/* ===== x86_64 data ===== */
+const x86_baseline = {
   "addmul1/64B": 27.88, "addmul1/256B": 101.59, "addmul1/1024B": 415.79, "addmul1/1500B": 597.60,
   "rs_encode/k5/8/1500B": 9126.58, "rs_encode/k10/15/1500B": 30094.50,
   "rs_decode/k5/8/1500B": 9764.80, "rs_decode/k10/15/1500B": 31482.60,
   "crc32_old/64B": 18.56, "crc32_old/256B": 68.45, "crc32_old/1024B": 266.10, "crc32_old/1500B": 444.47
 };
 
-const optimized = {
+const x86_optimized = {
   "addmul1/64B": 11.34, "addmul1/256B": 12.32, "addmul1/1024B": 25.97, "addmul1/1500B": 39.57,
   "rs_encode/k5/8/1500B": 660.86, "rs_encode/k10/15/1500B": 2187.85,
   "rs_decode/k5/8/1500B": 1320.81, "rs_decode/k10/15/1500B": 3508.08,
@@ -91,43 +152,46 @@ const optimized = {
   "cook_xor_only/1500B": 135.71, "cook_obscure_only/1500B": 313.50, "cook_crc32_only/1500B": 206.99
 };
 
-const sections = [
-  { title: "GF(2^8) Multiply-Accumulate (addmul1)",
-    desc: "Inner loop of Reed-Solomon. SSSE3/AVX2 nibble-decomposition lookup.",
-    keys: ["addmul1/64B","addmul1/256B","addmul1/1024B","addmul1/1500B"],
-    baselineKeys: null, optimizedKeys: null },
-  { title: "Reed-Solomon Encode",
-    desc: "Full FEC encode pipeline.",
-    keys: ["rs_encode/k5/8/1500B","rs_encode/k10/15/1500B"],
-    baselineKeys: null, optimizedKeys: null },
-  { title: "Reed-Solomon Decode",
-    desc: "Full FEC decode pipeline (includes malloc elimination).",
-    keys: ["rs_decode/k5/8/1500B","rs_decode/k10/15/1500B"],
-    baselineKeys: null, optimizedKeys: null },
-  { title: "CRC32: old (zlib) vs CRC32C (SSE4.2 hardware)",
-    desc: "Packet checksum. Hardware CRC32C via SSE4.2 _mm_crc32_u64.",
-    keys: ["crc32/64B","crc32/256B","crc32/1024B","crc32/1500B"],
-    baselineKeys: ["crc32_old/64B","crc32_old/256B","crc32_old/1024B","crc32_old/1500B"],
-    optimizedKeys: ["crc32c/64B","crc32c/256B","crc32c/1024B","crc32c/1500B"] }
-];
+/* ===== PPC e500v2 data (QEMU) ===== */
+const ppc_baseline = {
+  "addmul1/64B": 138.12, "addmul1/256B": 442.19, "addmul1/1024B": 1666.31, "addmul1/1500B": 2453.39,
+  "rs_encode/k5/8/1500B": 54350.50, "rs_encode/k10/15/1500B": 182165.60,
+  "rs_decode/k5/8/1500B": 44606.65, "rs_decode/k10/15/1500B": 169905.43,
+  "crc32_old/64B": 129.24, "crc32_old/256B": 450.95, "crc32_old/1024B": 1743.67, "crc32_old/1500B": 2608.85
+};
 
-const container = document.getElementById('charts');
+const ppc_current = {
+  "addmul1/64B": 134.82, "addmul1/256B": 442.42, "addmul1/1024B": 1662.99, "addmul1/1500B": 2447.03,
+  "rs_encode/k5/8/1500B": 37179.71, "rs_encode/k10/15/1500B": 123385.12,
+  "rs_decode/k5/8/1500B": 42146.54, "rs_decode/k10/15/1500B": 133962.50,
+  "crc32_old/64B": 128.19, "crc32_old/256B": 451.75, "crc32_old/1024B": 1746.47, "crc32_old/1500B": 2613.89,
+  "crc32c/64B": 113.43, "crc32c/256B": 335.70, "crc32c/1024B": 1235.84, "crc32c/1500B": 1804.22,
+  "do_cook/64B": 698.97, "do_cook/256B": 1152.13, "do_cook/1024B": 2984.90, "do_cook/1500B": 4089.98,
+  "de_cook/64B": 408.31, "de_cook/256B": 880.41, "de_cook/1024B": 2796.11, "de_cook/1500B": 3971.49,
+  "cook_crc32_only/1500B": 1982.94, "cook_obscure_only/1500B": 1414.86, "cook_xor_only/1500B": 1090.65
+};
 
-for (const section of sections) {
-  const h2 = document.createElement('h2');
-  h2.textContent = section.title;
-  container.appendChild(h2);
+/* ===== Chart rendering ===== */
+const fmt = (v) => v >= 100000 ? (v/1000).toFixed(0) + 'us' : v >= 1000 ? (v/1000).toFixed(1) + 'us' : v.toFixed(0) + 'ns';
+
+function renderSection(container, section, dataA, dataB, classA, classB, showSpeedup) {
+  const h3 = document.createElement('h3');
+  h3.textContent = section.title;
+  container.appendChild(h3);
 
   const keys = section.keys;
-  const bKeys = section.baselineKeys || keys;
-  const oKeys = section.optimizedKeys || keys;
+  const aKeys = section.aKeys || keys;
+  const bKeys = section.bKeys || keys;
 
-  const maxVal = Math.max(...bKeys.map(k => baseline[k] || 0), ...oKeys.map(k => optimized[k] || 0));
+  const maxVal = Math.max(
+    ...aKeys.map(k => dataA[k] || 0),
+    ...bKeys.map(k => dataB[k] || 0)
+  );
 
   for (let i = 0; i < keys.length; i++) {
-    const bVal = baseline[bKeys[i]] || 0;
-    const oVal = optimized[oKeys[i]] || 0;
-    const speedup = bVal > 0 ? (bVal / oVal) : 0;
+    const aVal = dataA[aKeys[i]] || 0;
+    const bVal = dataB[bKeys[i]] || 0;
+    const ratio = bVal > 0 ? (aVal / bVal) : 0;
 
     const row = document.createElement('div');
     row.className = 'row';
@@ -139,31 +203,71 @@ for (const section of sections) {
     const bars = document.createElement('div');
     bars.className = 'bars';
 
-    const barB = document.createElement('div');
-    barB.className = 'bar before';
-    barB.style.width = (bVal / maxVal * 100) + '%';
-    barB.title = bVal.toFixed(1) + ' ns/op';
-
     const barA = document.createElement('div');
-    barA.className = 'bar after';
-    barA.style.width = (oVal / maxVal * 100) + '%';
-    barA.title = oVal.toFixed(1) + ' ns/op';
+    barA.className = 'bar ' + classA;
+    barA.style.width = (aVal / maxVal * 100) + '%';
+    barA.title = fmt(aVal);
 
-    bars.appendChild(barB);
+    const barB = document.createElement('div');
+    barB.className = 'bar ' + classB;
+    barB.style.width = (bVal / maxVal * 100) + '%';
+    barB.title = fmt(bVal);
+
     bars.appendChild(barA);
+    bars.appendChild(barB);
 
     const value = document.createElement('div');
     value.className = 'value';
 
-    const fmt = (v) => v >= 1000 ? (v/1000).toFixed(1) + 'us' : v.toFixed(0) + 'ns';
-    value.innerHTML = `<span>${fmt(bVal)} &rarr; ${fmt(oVal)}</span>` +
-      (speedup > 1.1 ? `<span class="speedup">${speedup.toFixed(1)}x</span>` : '');
+    if (showSpeedup && ratio > 1.1) {
+      value.innerHTML = `<span>${fmt(aVal)} &rarr; ${fmt(bVal)}</span><span class="speedup">${ratio.toFixed(1)}x</span>`;
+    } else {
+      value.innerHTML = `<span>${fmt(aVal)} &rarr; ${fmt(bVal)}</span>`;
+    }
 
     row.appendChild(label);
     row.appendChild(bars);
     row.appendChild(value);
     container.appendChild(row);
   }
+}
+
+/* ===== x86_64 sections ===== */
+const x86Sections = [
+  { title: "GF(2^8) Multiply-Accumulate (addmul1)",
+    keys: ["addmul1/64B","addmul1/256B","addmul1/1024B","addmul1/1500B"] },
+  { title: "Reed-Solomon Encode",
+    keys: ["rs_encode/k5/8/1500B","rs_encode/k10/15/1500B"] },
+  { title: "Reed-Solomon Decode",
+    keys: ["rs_decode/k5/8/1500B","rs_decode/k10/15/1500B"] },
+  { title: "CRC32: old (zlib) vs CRC32C (SSE4.2 hardware)",
+    keys: ["crc32/64B","crc32/256B","crc32/1024B","crc32/1500B"],
+    aKeys: ["crc32_old/64B","crc32_old/256B","crc32_old/1024B","crc32_old/1500B"],
+    bKeys: ["crc32c/64B","crc32c/256B","crc32c/1024B","crc32c/1500B"] }
+];
+
+const x86Container = document.getElementById('x86charts');
+for (const s of x86Sections) {
+  renderSection(x86Container, s, x86_baseline, x86_optimized, 'before', 'after', true);
+}
+
+/* ===== PPC sections (baseline vs current, both QEMU) ===== */
+const ppcSections = [
+  { title: "CRC32: old (zlib) vs CRC32C (software slicing-by-8)",
+    keys: ["crc32/64B","crc32/256B","crc32/1024B","crc32/1500B"],
+    aKeys: ["crc32_old/64B","crc32_old/256B","crc32_old/1024B","crc32_old/1500B"],
+    bKeys: ["crc32c/64B","crc32c/256B","crc32c/1024B","crc32c/1500B"] },
+  { title: "Reed-Solomon Encode (pre-alloc buffers)",
+    keys: ["rs_encode/k5/8/1500B","rs_encode/k10/15/1500B"] },
+  { title: "Reed-Solomon Decode (pre-alloc buffers)",
+    keys: ["rs_decode/k5/8/1500B","rs_decode/k10/15/1500B"] },
+  { title: "addmul1 (scalar on both, no change expected)",
+    keys: ["addmul1/64B","addmul1/256B","addmul1/1024B","addmul1/1500B"] }
+];
+
+const ppcContainer = document.getElementById('ppccharts');
+for (const s of ppcSections) {
+  renderSection(ppcContainer, s, ppc_baseline, ppc_current, 'ppc-old', 'ppc-new', true);
 }
 </script>
 </body>
