@@ -130,8 +130,17 @@ test: git_version
 	${cc_local} -o test_udpspeeder -I. -Ibench ${TEST_SOURCES} ${BENCH_FLAGS}
 	./test_udpspeeder
 
-bench-musl: git_version
-	musl-gcc -x c++ -o bench_udpspeeder_musl -I. -Ibench ${BENCH_SOURCES} ${BENCH_FLAGS} -static -lstdc++
+bench-static: git_version
+	${cc_local} -o bench_udpspeeder_static -I. -Ibench ${BENCH_SOURCES} ${BENCH_FLAGS} -static
+
+test-static: git_version
+	${cc_local} -o test_udpspeeder_static -I. -Ibench ${TEST_SOURCES} ${BENCH_FLAGS} -static
 
 bench-cross: git_version
 	${CC} -o bench_udpspeeder_cross -I. -Ibench ${BENCH_SOURCES} ${BENCH_FLAGS} -static
+
+test-cross: git_version
+	${CC} -o test_udpspeeder_cross -I. -Ibench ${TEST_SOURCES} ${BENCH_FLAGS} -static
+
+all-cross: git_version
+	${CC} -o ${NAME}_cross -I. ${SOURCES} ${FLAGS} -lrt -static -O2

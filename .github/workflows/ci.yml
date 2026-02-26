@@ -41,3 +41,65 @@ jobs:
           comment-on-alert: true
           fail-on-alert: false
           benchmark-data-dir-path: dev/bench
+
+  build-powerpc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install packages
+        run: sudo apt-get update && sudo apt-get install -y qemu-user-static zstd
+
+      - name: Download OpenWrt toolchain
+        run: |
+          curl -fSL "https://downloads.openwrt.org/releases/25.12.0-rc5/targets/mpc85xx/p1010/openwrt-toolchain-25.12.0-rc5-mpc85xx-p1010_gcc-14.3.0_musl.Linux-x86_64.tar.zst" -o toolchain.tar.zst
+          mkdir -p /tmp/openwrt-toolchain
+          tar --zstd -xf toolchain.tar.zst -C /tmp/openwrt-toolchain --strip-components=1
+          PPC_GXX=$(find /tmp/openwrt-toolchain -name '*-g++' -path '*/bin/*' | head -1)
+          echo "PPC_GXX=${PPC_GXX}" >> "$GITHUB_ENV"
+          echo "STAGING_DIR=/tmp/openwrt-toolchain" >> "$GITHUB_ENV"
+          echo "Found toolchain: ${PPC_GXX}"
+
+      - name: Build bench (powerpc)
+        run: make bench-cross CC=${PPC_GXX}
+
+      - name: Build test (powerpc)
+        run: make test-cross CC=${PPC_GXX}
+
+      - name: Build production (powerpc)
+        run: make all-cross CC=${PPC_GXX}
+
+      - name: Verify binaries
+        run: file bench_udpspeeder_cross test_udpspeeder_cross speederv2_cross
+
+      - name: Run tests (QEMU)
+        run: qemu-ppc-static -cpu e500v2 ./test_udpspeeder_cross
+
+      - name: Run benchmarks (QEMU)
+        run: qemu-ppc-static -cpu e500v2 ./bench_udpspeeder_cross
+
+      - name: Run benchmarks JSON (QEMU)
+        run: qemu-ppc-static -cpu e500v2 ./bench_udpspeeder_cross --json
+
+      - name: Store PPC benchmark results
+        if: github.ref == 'refs/heads/baseline'
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: UDPspeeder Benchmarks (PowerPC e500v2 via QEMU) — Baseline
+          tool: customSmallerIsBetter
+          output-file-path: bench_results.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: '200%'
+          comment-on-alert: true
+          fail-on-alert: false
+          benchmark-data-dir-path: dev/bench-powerpc-baseline
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: udpspeeder-powerpc-baseline
+          path: |
+            bench_udpspeeder_cross
+            test_udpspeeder_cross
+            speederv2_cross
