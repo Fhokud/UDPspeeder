@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772078420393,
+  "lastUpdate": 1772127952803,
   "repoUrl": "https://github.com/slartibardfast/UDPspeeder",
   "entries": {
     "UDPspeeder Throughput": [
@@ -263,6 +263,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "baseline/throughput/fec-20-10",
             "value": 348,
+            "unit": "Mbps"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "committer": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "distinct": true,
+          "id": "a563c5e2f7ece94379823cf5d98057b441788601",
+          "message": "Batch FEC output sends with sendmmsg to reduce syscall overhead\n\nReplace N individual sendto() calls per FEC batch with a single\nsendmmsg() syscall. Adds my_send_batch() and delay_send_batch()\nthat cook all packets then send via one kernel transition.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-26T17:39:58Z",
+          "tree_id": "59afc3de9bb30f24a15d7892e051b44784c6a0e9",
+          "url": "https://github.com/slartibardfast/UDPspeeder/commit/a563c5e2f7ece94379823cf5d98057b441788601"
+        },
+        "date": 1772127951912,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput/no-fec",
+            "value": 1498.6,
+            "unit": "Mbps"
+          },
+          {
+            "name": "throughput/fec-20-10",
+            "value": 1088.2,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/no-fec",
+            "value": 891.9,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/fec-20-10",
+            "value": 499.9,
             "unit": "Mbps"
           }
         ]
