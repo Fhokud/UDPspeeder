@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772134554673,
+  "lastUpdate": 1772139860001,
   "repoUrl": "https://github.com/slartibardfast/UDPspeeder",
   "entries": {
     "UDPspeeder Throughput": [
@@ -439,6 +439,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "baseline/throughput/fec-20-10",
             "value": 509.1,
+            "unit": "Mbps"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "committer": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "distinct": true,
+          "id": "a0e8d1fb0e1574250fa43dc4c48894d684c064f5",
+          "message": "Replace fec_group unordered_map with direct-mapped flat table\n\nReplace unordered_map<u32_t, fec_group_t> in fec_decode_manager with a\npre-allocated flat array indexed by seq & mask. Eliminates per-group\nmalloc/free (~50K allocs/sec) and reduces group init from 1KB memset\n(shard_idx[256]) to 32-byte bitmap clear.\n\nKey changes:\n- fec_group_t: add seq field, bitmap-based shard tracking (has_shard/set_shard)\n- group_table: heap-allocated array, size = next_pow2(fec_buff_num * 2)\n- Direct-mapped lookup: group_table[seq & mask], safe because monotonic\n  seqs guarantee no two concurrent groups collide when table > max groups\n- Per-shard cost: array index + compare vs hash + pointer chase\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-26T20:58:21Z",
+          "tree_id": "b71d634c4f64c273a1eface207c704377c08edc7",
+          "url": "https://github.com/slartibardfast/UDPspeeder/commit/a0e8d1fb0e1574250fa43dc4c48894d684c064f5"
+        },
+        "date": 1772139859504,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput/no-fec",
+            "value": 941.9,
+            "unit": "Mbps"
+          },
+          {
+            "name": "throughput/fec-20-10",
+            "value": 656.7,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/no-fec",
+            "value": 637.8,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/fec-20-10",
+            "value": 363.5,
             "unit": "Mbps"
           }
         ]
