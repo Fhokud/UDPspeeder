@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772231261277,
+  "lastUpdate": 1772231753103,
   "repoUrl": "https://github.com/slartibardfast/UDPspeeder",
   "entries": {
     "UDPspeeder Benchmarks": [
@@ -5262,6 +5262,205 @@ window.BENCHMARK_DATA = {
           {
             "name": "cook_xor_only/1500B",
             "value": 70.1463,
+            "unit": "ns/op"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "committer": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "distinct": true,
+          "id": "1f22e31c2d9c801c7b0e6848809c390f9b9e869c",
+          "message": "Fix __BYTE_ORDER redefinition warning on musl toolchains\n\nGuard the __BYTE_ORDER define with #ifndef so it doesn't conflict\nwith musl's built-in definition (affects RISC-V and PPC cross builds).\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-27T22:33:02Z",
+          "tree_id": "915c3012fa32d0259ba4435e0fccab4e419e31a1",
+          "url": "https://github.com/slartibardfast/UDPspeeder/commit/1f22e31c2d9c801c7b0e6848809c390f9b9e869c"
+        },
+        "date": 1772231752784,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "addmul1/64B",
+            "value": 11.2289,
+            "unit": "ns/op"
+          },
+          {
+            "name": "addmul1/256B",
+            "value": 11.8292,
+            "unit": "ns/op"
+          },
+          {
+            "name": "addmul1/1024B",
+            "value": 25.3548,
+            "unit": "ns/op"
+          },
+          {
+            "name": "addmul1/1500B",
+            "value": 37.8264,
+            "unit": "ns/op"
+          },
+          {
+            "name": "rs_encode/k5/8/1500B",
+            "value": 1076.54,
+            "unit": "ns/op"
+          },
+          {
+            "name": "rs_encode/k10/15/1500B",
+            "value": 3469.96,
+            "unit": "ns/op"
+          },
+          {
+            "name": "rs_decode/k5/8/1500B",
+            "value": 2041.5,
+            "unit": "ns/op"
+          },
+          {
+            "name": "rs_decode/k10/15/1500B",
+            "value": 5422.22,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32_old/64B",
+            "value": 19.0372,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32_old/256B",
+            "value": 68.2933,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32_old/1024B",
+            "value": 266.833,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32_old/1500B",
+            "value": 449.576,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_sw/64B",
+            "value": 20.8274,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_sw/256B",
+            "value": 107.691,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_sw/1024B",
+            "value": 465.936,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_sw/1500B",
+            "value": 686.271,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_hw/64B",
+            "value": 4.65996,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_hw/256B",
+            "value": 16.9426,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_hw/1024B",
+            "value": 108.682,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_hw/1500B",
+            "value": 163.62,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c/64B",
+            "value": 4.70684,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c/256B",
+            "value": 16.9362,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c/1024B",
+            "value": 109.543,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c/1500B",
+            "value": 164.337,
+            "unit": "ns/op"
+          },
+          {
+            "name": "do_cook/64B",
+            "value": 157.281,
+            "unit": "ns/op"
+          },
+          {
+            "name": "do_cook/256B",
+            "value": 170.658,
+            "unit": "ns/op"
+          },
+          {
+            "name": "do_cook/1024B",
+            "value": 289.43,
+            "unit": "ns/op"
+          },
+          {
+            "name": "do_cook/1500B",
+            "value": 353.225,
+            "unit": "ns/op"
+          },
+          {
+            "name": "de_cook/64B",
+            "value": 37.4941,
+            "unit": "ns/op"
+          },
+          {
+            "name": "de_cook/256B",
+            "value": 61.1822,
+            "unit": "ns/op"
+          },
+          {
+            "name": "de_cook/1024B",
+            "value": 167.864,
+            "unit": "ns/op"
+          },
+          {
+            "name": "de_cook/1500B",
+            "value": 229.776,
+            "unit": "ns/op"
+          },
+          {
+            "name": "cook_crc32_only/1500B",
+            "value": 207.082,
+            "unit": "ns/op"
+          },
+          {
+            "name": "cook_obscure_only/1500B",
+            "value": 196.866,
+            "unit": "ns/op"
+          },
+          {
+            "name": "cook_xor_only/1500B",
+            "value": 69.7477,
             "unit": "ns/op"
           }
         ]
