@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772148614296,
+  "lastUpdate": 1772231514929,
   "repoUrl": "https://github.com/slartibardfast/UDPspeeder",
   "entries": {
     "UDPspeeder Throughput": [
@@ -615,6 +615,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "baseline/throughput/fec-20-10",
             "value": 366,
+            "unit": "Mbps"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "committer": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "distinct": true,
+          "id": "fbdbbb89db0848b8dbff5579f1962fd79a2c36f7",
+          "message": "Add cross-architecture interop tests with MIPS and RISC-V support\n\nExpand CI build matrix from 3 to 5 architectures (add MIPS big-endian\nand RISC-V 64) and add a new interop job that verifies data integrity\nacross 8 arch pairs x 3 configs (24 tests total) via QEMU-user.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-27T22:23:16Z",
+          "tree_id": "5b043bc97a6b182c7855dad5f286636b5f32f445",
+          "url": "https://github.com/slartibardfast/UDPspeeder/commit/fbdbbb89db0848b8dbff5579f1962fd79a2c36f7"
+        },
+        "date": 1772231513989,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput/no-fec",
+            "value": 1517.3,
+            "unit": "Mbps"
+          },
+          {
+            "name": "throughput/fec-20-10",
+            "value": 1063.7,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/no-fec",
+            "value": 866.4,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/fec-20-10",
+            "value": 509.9,
             "unit": "Mbps"
           }
         ]
