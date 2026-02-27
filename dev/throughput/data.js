@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772234316805,
+  "lastUpdate": 1772236104887,
   "repoUrl": "https://github.com/slartibardfast/UDPspeeder",
   "entries": {
     "UDPspeeder Throughput": [
@@ -835,6 +835,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "baseline/throughput/fec-20-10",
             "value": 376.6,
+            "unit": "Mbps"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "committer": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "distinct": true,
+          "id": "41ed1156a226ec5c33a30aad3bf5880540723a0f",
+          "message": "Fix SPE xor_tile alignment bug + diagnostic CI for PPC interop\n\nMove head-alignment and tile rotation into C (packet_cook.cpp) so the\nSPE assembly always receives 8-byte-aligned data at tile offset 0.\nThe old assembly head loop left the tile offset misaligned (1-7) after\naligning the data pointer, causing every subsequent evldd to read from\na misaligned tile address — silent corruption on e500v2.\n\nAlso: add --log-level pass-through to interop.sh, enable trace logging\nfor PPC-client CI pairs, add no-fec-key interop config to isolate key\nXOR failures, and add unaligned-buffer cook unit tests.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-27T23:42:26Z",
+          "tree_id": "33119efeddb9026f057f6618c8bfb8ca5edf0ce8",
+          "url": "https://github.com/slartibardfast/UDPspeeder/commit/41ed1156a226ec5c33a30aad3bf5880540723a0f"
+        },
+        "date": 1772236104421,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput/no-fec",
+            "value": 982.5,
+            "unit": "Mbps"
+          },
+          {
+            "name": "throughput/fec-20-10",
+            "value": 662.7,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/no-fec",
+            "value": 635.2,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/fec-20-10",
+            "value": 368.9,
             "unit": "Mbps"
           }
         ]
