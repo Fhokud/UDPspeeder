@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772231514929,
+  "lastUpdate": 1772231999489,
   "repoUrl": "https://github.com/slartibardfast/UDPspeeder",
   "entries": {
     "UDPspeeder Throughput": [
@@ -659,6 +659,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "baseline/throughput/fec-20-10",
             "value": 509.9,
+            "unit": "Mbps"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "committer": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "distinct": true,
+          "id": "1f22e31c2d9c801c7b0e6848809c390f9b9e869c",
+          "message": "Fix __BYTE_ORDER redefinition warning on musl toolchains\n\nGuard the __BYTE_ORDER define with #ifndef so it doesn't conflict\nwith musl's built-in definition (affects RISC-V and PPC cross builds).\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-27T22:33:02Z",
+          "tree_id": "915c3012fa32d0259ba4435e0fccab4e419e31a1",
+          "url": "https://github.com/slartibardfast/UDPspeeder/commit/1f22e31c2d9c801c7b0e6848809c390f9b9e869c"
+        },
+        "date": 1772231998458,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput/no-fec",
+            "value": 974.8,
+            "unit": "Mbps"
+          },
+          {
+            "name": "throughput/fec-20-10",
+            "value": 668.3,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/no-fec",
+            "value": 608.2,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/fec-20-10",
+            "value": 364.4,
             "unit": "Mbps"
           }
         ]
