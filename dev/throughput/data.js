@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772236997119,
+  "lastUpdate": 1772238567466,
   "repoUrl": "https://github.com/slartibardfast/UDPspeeder",
   "entries": {
     "UDPspeeder Throughput": [
@@ -923,6 +923,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "baseline/throughput/fec-20-10",
             "value": 353.1,
+            "unit": "Mbps"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "committer": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "distinct": true,
+          "id": "73a6487ef00470a19a7423bfbf12149c548b4f35",
+          "message": "Add AVX-512BW addmul1 and XOR cook with runtime CPUID dispatch\n\naddmul1_avx512: 512-bit GF(2^8) multiply-accumulate using vpshufb\nfor nibble table lookups and vpternlogd (0x96) for 3-way XOR in one\ninstruction. 128 bytes/iteration (2x unrolled), with 64B/32B/16B/scalar\ntails.\n\nxor_tile_avx512: 512-bit XOR cook pipeline with broadcast fast path\nfor tile_len=16 and 4x128-bit insert for arbitrary tile lengths.\n\nCPUID detection checks OSXSAVE, XCR0 bits 1,2,5,6,7 (SSE+AVX+opmask+\nZMM), and CPUID.7.EBX[30] (AVX-512BW). Falls back to AVX2 → SSSE3/SSE2\non older hardware.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-28T00:23:45Z",
+          "tree_id": "cca6cdf670f7380e8a68ae1bac9cbb48a718c9a5",
+          "url": "https://github.com/slartibardfast/UDPspeeder/commit/73a6487ef00470a19a7423bfbf12149c548b4f35"
+        },
+        "date": 1772238566970,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput/no-fec",
+            "value": 970.2,
+            "unit": "Mbps"
+          },
+          {
+            "name": "throughput/fec-20-10",
+            "value": 666.4,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/no-fec",
+            "value": 644.2,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/fec-20-10",
+            "value": 356.8,
             "unit": "Mbps"
           }
         ]
