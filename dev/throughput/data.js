@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772238567466,
+  "lastUpdate": 1772239096496,
   "repoUrl": "https://github.com/slartibardfast/UDPspeeder",
   "entries": {
     "UDPspeeder Throughput": [
@@ -967,6 +967,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "baseline/throughput/fec-20-10",
             "value": 356.8,
+            "unit": "Mbps"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "committer": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "distinct": true,
+          "id": "f16fa22a3d413876df9b4e5329d8b5effbd3f32a",
+          "message": "Print detected SIMD tier in benchmark output\n\nAdds SIMD banner at bench startup showing which codepath was selected:\n  SIMD: addmul1=avx512bw  xor_cook=avx512bw  vec_width=16\n\nExposes bench_addmul1_impl() and bench_xor_tile_impl() from the\nrespective source files, reading the runtime dispatch state directly.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-28T00:32:31Z",
+          "tree_id": "a43a380c643b5961bc01bd9f0da6ebd0519c487b",
+          "url": "https://github.com/slartibardfast/UDPspeeder/commit/f16fa22a3d413876df9b4e5329d8b5effbd3f32a"
+        },
+        "date": 1772239095408,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput/no-fec",
+            "value": 972.3,
+            "unit": "Mbps"
+          },
+          {
+            "name": "throughput/fec-20-10",
+            "value": 658.5,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/no-fec",
+            "value": 639.2,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/fec-20-10",
+            "value": 351.5,
             "unit": "Mbps"
           }
         ]
