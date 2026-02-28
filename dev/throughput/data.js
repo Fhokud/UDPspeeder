@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772236104887,
+  "lastUpdate": 1772236997119,
   "repoUrl": "https://github.com/slartibardfast/UDPspeeder",
   "entries": {
     "UDPspeeder Throughput": [
@@ -879,6 +879,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "baseline/throughput/fec-20-10",
             "value": 368.9,
+            "unit": "Mbps"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "committer": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "distinct": true,
+          "id": "09eb177275275a1d7238202422dfbe8f10bd2345",
+          "message": "Remove diagnostic trace logging for PPC interop tests\n\nThe SPE alignment bug is fixed (41ed115). Drop the --log-level 6\noverride for PPC-client pairs; default level 4 is sufficient.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-27T23:57:32Z",
+          "tree_id": "09ca5471f304510e9512c9905be669fff8686b5a",
+          "url": "https://github.com/slartibardfast/UDPspeeder/commit/09eb177275275a1d7238202422dfbe8f10bd2345"
+        },
+        "date": 1772236996747,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput/no-fec",
+            "value": 979.7,
+            "unit": "Mbps"
+          },
+          {
+            "name": "throughput/fec-20-10",
+            "value": 662.6,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/no-fec",
+            "value": 635.9,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/fec-20-10",
+            "value": 353.1,
             "unit": "Mbps"
           }
         ]
