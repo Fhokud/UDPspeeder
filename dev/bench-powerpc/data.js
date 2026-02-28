@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772236710973,
+  "lastUpdate": 1772238274019,
   "repoUrl": "https://github.com/slartibardfast/UDPspeeder",
   "entries": {
     "UDPspeeder Benchmarks (PowerPC e500v2 via QEMU)": [
@@ -1252,6 +1252,185 @@ window.BENCHMARK_DATA = {
           {
             "name": "cook_xor_only/1500B",
             "value": 1068.46,
+            "unit": "ns/op"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "committer": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "distinct": true,
+          "id": "73a6487ef00470a19a7423bfbf12149c548b4f35",
+          "message": "Add AVX-512BW addmul1 and XOR cook with runtime CPUID dispatch\n\naddmul1_avx512: 512-bit GF(2^8) multiply-accumulate using vpshufb\nfor nibble table lookups and vpternlogd (0x96) for 3-way XOR in one\ninstruction. 128 bytes/iteration (2x unrolled), with 64B/32B/16B/scalar\ntails.\n\nxor_tile_avx512: 512-bit XOR cook pipeline with broadcast fast path\nfor tile_len=16 and 4x128-bit insert for arbitrary tile lengths.\n\nCPUID detection checks OSXSAVE, XCR0 bits 1,2,5,6,7 (SSE+AVX+opmask+\nZMM), and CPUID.7.EBX[30] (AVX-512BW). Falls back to AVX2 → SSSE3/SSE2\non older hardware.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-28T00:23:45Z",
+          "tree_id": "cca6cdf670f7380e8a68ae1bac9cbb48a718c9a5",
+          "url": "https://github.com/slartibardfast/UDPspeeder/commit/73a6487ef00470a19a7423bfbf12149c548b4f35"
+        },
+        "date": 1772238273523,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "addmul1/64B",
+            "value": 135.549,
+            "unit": "ns/op"
+          },
+          {
+            "name": "addmul1/256B",
+            "value": 440.926,
+            "unit": "ns/op"
+          },
+          {
+            "name": "addmul1/1024B",
+            "value": 1664.73,
+            "unit": "ns/op"
+          },
+          {
+            "name": "addmul1/1500B",
+            "value": 2436.11,
+            "unit": "ns/op"
+          },
+          {
+            "name": "rs_encode/k5/8/1500B",
+            "value": 37298.6,
+            "unit": "ns/op"
+          },
+          {
+            "name": "rs_encode/k10/15/1500B",
+            "value": 123219,
+            "unit": "ns/op"
+          },
+          {
+            "name": "rs_decode/k5/8/1500B",
+            "value": 42569.9,
+            "unit": "ns/op"
+          },
+          {
+            "name": "rs_decode/k10/15/1500B",
+            "value": 134225,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32_old/64B",
+            "value": 128.711,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32_old/256B",
+            "value": 451.736,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32_old/1024B",
+            "value": 1744.97,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32_old/1500B",
+            "value": 2612.15,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_sw/64B",
+            "value": 109.356,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_sw/256B",
+            "value": 334.296,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_sw/1024B",
+            "value": 1230.25,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c_sw/1500B",
+            "value": 1799.67,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c/64B",
+            "value": 114.718,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c/256B",
+            "value": 337.249,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c/1024B",
+            "value": 1235.52,
+            "unit": "ns/op"
+          },
+          {
+            "name": "crc32c/1500B",
+            "value": 1804.37,
+            "unit": "ns/op"
+          },
+          {
+            "name": "do_cook/64B",
+            "value": 724.832,
+            "unit": "ns/op"
+          },
+          {
+            "name": "do_cook/256B",
+            "value": 1180.69,
+            "unit": "ns/op"
+          },
+          {
+            "name": "do_cook/1024B",
+            "value": 2990.19,
+            "unit": "ns/op"
+          },
+          {
+            "name": "do_cook/1500B",
+            "value": 4122.09,
+            "unit": "ns/op"
+          },
+          {
+            "name": "de_cook/64B",
+            "value": 422.936,
+            "unit": "ns/op"
+          },
+          {
+            "name": "de_cook/256B",
+            "value": 901.31,
+            "unit": "ns/op"
+          },
+          {
+            "name": "de_cook/1024B",
+            "value": 2818.51,
+            "unit": "ns/op"
+          },
+          {
+            "name": "de_cook/1500B",
+            "value": 3994.02,
+            "unit": "ns/op"
+          },
+          {
+            "name": "cook_crc32_only/1500B",
+            "value": 1986.17,
+            "unit": "ns/op"
+          },
+          {
+            "name": "cook_obscure_only/1500B",
+            "value": 1431.56,
+            "unit": "ns/op"
+          },
+          {
+            "name": "cook_xor_only/1500B",
+            "value": 1061.52,
             "unit": "ns/op"
           }
         ]
