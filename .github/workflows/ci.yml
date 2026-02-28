@@ -5,6 +5,7 @@ on:
     branches: [branch_libev, master]
   pull_request:
     branches: [branch_libev, master]
+  workflow_dispatch:
 
 permissions:
   contents: write
