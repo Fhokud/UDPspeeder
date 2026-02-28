@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772239096496,
+  "lastUpdate": 1772240869330,
   "repoUrl": "https://github.com/slartibardfast/UDPspeeder",
   "entries": {
     "UDPspeeder Throughput": [
@@ -1011,6 +1011,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "baseline/throughput/fec-20-10",
             "value": 351.5,
+            "unit": "Mbps"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "committer": {
+            "email": "david@connol.ly",
+            "name": "David Connolly",
+            "username": "slartibardfast"
+          },
+          "distinct": true,
+          "id": "979b8f504f81a5577e5bcd21f4b449878f056c5f",
+          "message": "Unroll NEON addmul1 and XOR cook loops 2x for ILP\n\nARMv8 has 32 NEON registers so 2x unrolling is free in register\npressure. Processes 32 bytes/iteration in the main loop with a\n16-byte tail, matching the x86 unroll pattern.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-28T00:59:48Z",
+          "tree_id": "1a72a74d46d4a90d16ee84fe5e1394a60ee1dc79",
+          "url": "https://github.com/slartibardfast/UDPspeeder/commit/979b8f504f81a5577e5bcd21f4b449878f056c5f"
+        },
+        "date": 1772240868237,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput/no-fec",
+            "value": 968,
+            "unit": "Mbps"
+          },
+          {
+            "name": "throughput/fec-20-10",
+            "value": 662.6,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/no-fec",
+            "value": 617.6,
+            "unit": "Mbps"
+          },
+          {
+            "name": "baseline/throughput/fec-20-10",
+            "value": 374.7,
             "unit": "Mbps"
           }
         ]
