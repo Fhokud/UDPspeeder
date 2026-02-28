@@ -54,6 +54,31 @@ void register_fec_benchmarks(void *bench_ptr) {
         free(data);
     }
 
+    /* --- rs_encode2 MT --- */
+    for (int threads : {2, 4}) {
+        fec_set_threads(threads);
+        for (auto &cfg : encode_configs) {
+            std::string name = std::string("rs_encode_mt") + std::to_string(threads) +
+                "/k" + cfg.label + "/1500B";
+            int k = cfg.k, n = cfg.n;
+
+            char **data = (char **)calloc(n, sizeof(char *));
+            for (int j = 0; j < n; j++)
+                data[j] = (char *)calloc(1, 1500);
+            for (int j = 0; j < k; j++)
+                fill_random(data[j], 1500);
+
+            bench.run(name, [k, n, data]() {
+                rs_encode2(k, n, data, 1500);
+                ankerl::nanobench::doNotOptimizeAway(data[k][0]);
+            });
+
+            for (int j = 0; j < n; j++) free(data[j]);
+            free(data);
+        }
+    }
+    fec_set_threads(1);
+
     /* --- rs_decode2 --- */
     for (auto &cfg : encode_configs) {
         std::string name = std::string("rs_decode/k") + cfg.label + "/1500B";
@@ -90,4 +115,42 @@ void register_fec_benchmarks(void *bench_ptr) {
         for (int j = 0; j < n; j++) { free(orig[j]); free(bufs[j]); }
         free(orig); free(data); free(bufs);
     }
+
+    /* --- rs_decode2 MT --- */
+    for (int threads : {2, 4}) {
+        fec_set_threads(threads);
+        for (auto &cfg : encode_configs) {
+            std::string name = std::string("rs_decode_mt") + std::to_string(threads) +
+                "/k" + cfg.label + "/1500B";
+            int k = cfg.k, n = cfg.n;
+            int redundant = n - k;
+
+            char **orig = (char **)calloc(n, sizeof(char *));
+            for (int j = 0; j < n; j++)
+                orig[j] = (char *)calloc(1, 1500);
+            for (int j = 0; j < k; j++)
+                fill_random(orig[j], 1500);
+            fec_set_threads(1);  /* encode single-threaded for clean baseline */
+            rs_encode2(k, n, orig, 1500);
+            fec_set_threads(threads);
+
+            char **data2 = (char **)calloc(n, sizeof(char *));
+            char **bufs2 = (char **)calloc(n, sizeof(char *));
+            for (int j = 0; j < n; j++)
+                bufs2[j] = (char *)calloc(1, 1500);
+
+            bench.run(name, [k, n, redundant, orig, data2, bufs2]() {
+                for (int j = 0; j < n; j++)
+                    memcpy(bufs2[j], orig[j], 1500);
+                for (int j = 0; j < n; j++)
+                    data2[j] = (j < redundant) ? NULL : bufs2[j];
+                rs_decode2(k, n, data2, 1500);
+                ankerl::nanobench::doNotOptimizeAway(data2[0][0]);
+            });
+
+            for (int j = 0; j < n; j++) { free(orig[j]); free(bufs2[j]); }
+            free(orig); free(data2); free(bufs2);
+        }
+    }
+    fec_set_threads(1);
 }

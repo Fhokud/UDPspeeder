@@ -45,6 +45,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <pthread.h>
 
 typedef unsigned long u_long;
 /*
@@ -1147,6 +1149,10 @@ build_decode_matrix(struct fec_parms *code, gf *pkt[], int index[], gf *matrix)
  *	index: pointer to packet indexes (modified)
  *	sz:    size of each packet
  */
+/* forward declarations for thread pool (defined after get_k/get_n) */
+static int fec_num_threads = 0;
+static void fec_decode_parallel(struct fec_parms *code, gf **pkt, int *index, gf *dec_matrix, int k, int sz);
+
 int
 fec_decode(void *code0, void *pkt0[], int index[], int sz)
 //fec_decode(struct fec_parms *code, gf *pkt[], int index[], int sz)
@@ -1170,6 +1176,12 @@ fec_decode(void *code0, void *pkt0[], int index[], int sz)
 	code->dec_buf = (gf *)my_malloc(k * sz * sizeof(gf), "dec_buf");
 	code->dec_buf_sz = sz ;
     }
+
+    if (fec_num_threads > 1) {
+	fec_decode_parallel(code, pkt, index, code->dec_matrix, k, sz);
+	return 0;
+    }
+
     /*
      * do the actual decoding
      */
@@ -1201,6 +1213,194 @@ int get_k(void *code0)
 {
 	struct fec_parms * code= (struct fec_parms *)code0;
 	return code->k;
+}
+
+/*
+ * Thread pool for parallel FEC encode/decode.
+ * Workers sleep on a barrier, wake to process assigned work items,
+ * then signal completion via a second barrier.
+ */
+
+#define FEC_MAX_THREADS 8
+
+struct fec_work_item {
+    void *code;
+    gf **src;
+    gf *dst;
+    int index;
+    int sz;
+    int k;
+    /* decode fields */
+    gf *dec_matrix;
+    gf **pkt;
+};
+
+static pthread_t fec_workers[FEC_MAX_THREADS];
+static pthread_barrier_t fec_start_barrier;
+static pthread_barrier_t fec_done_barrier;
+static struct fec_work_item fec_work[256];
+static int fec_work_count = 0;
+static volatile int fec_pool_shutdown = 0;
+static int fec_pool_started = 0;
+
+enum fec_work_type { FEC_WORK_ENCODE, FEC_WORK_DECODE };
+static enum fec_work_type fec_current_work_type;
+
+static void *fec_worker_func(void *arg)
+{
+    int tid = (int)(long)arg;
+
+    for (;;) {
+        pthread_barrier_wait(&fec_start_barrier);
+        if (fec_pool_shutdown)
+            break;
+
+        /* Process work items assigned to this thread */
+        for (int i = tid; i < fec_work_count; i += fec_num_threads) {
+            struct fec_work_item *w = &fec_work[i];
+            if (fec_current_work_type == FEC_WORK_ENCODE) {
+                struct fec_parms *code = (struct fec_parms *)w->code;
+                gf *p = &(code->enc_matrix[w->index * w->k]);
+                bzero(w->dst, w->sz * sizeof(gf));
+                for (int j = 0; j < w->k; j++)
+                    addmul(w->dst, w->src[j], p[j], w->sz);
+            } else {
+                /* decode: reconstruct one lost row */
+                bzero(w->dst, w->sz * sizeof(gf));
+                for (int col = 0; col < w->k; col++)
+                    addmul(w->dst, w->pkt[col], w->dec_matrix[w->index * w->k + col], w->sz);
+            }
+        }
+
+        pthread_barrier_wait(&fec_done_barrier);
+    }
+    return NULL;
+}
+
+static int fec_pool_size = 0;
+
+static void fec_pool_shutdown_fn(void)
+{
+    if (!fec_pool_started)
+        return;
+    fec_pool_shutdown = 1;
+    pthread_barrier_wait(&fec_start_barrier);
+    for (int i = 0; i < fec_pool_size; i++)
+        pthread_join(fec_workers[i], NULL);
+    pthread_barrier_destroy(&fec_start_barrier);
+    pthread_barrier_destroy(&fec_done_barrier);
+    fec_pool_started = 0;
+    fec_pool_size = 0;
+    fec_pool_shutdown = 0;
+}
+
+static void fec_pool_init(void)
+{
+    if (fec_pool_started)
+        fec_pool_shutdown_fn();
+    pthread_barrier_init(&fec_start_barrier, NULL, fec_num_threads + 1);
+    pthread_barrier_init(&fec_done_barrier, NULL, fec_num_threads + 1);
+    fec_pool_shutdown = 0;
+    for (int i = 0; i < fec_num_threads; i++)
+        pthread_create(&fec_workers[i], NULL, fec_worker_func, (void *)(long)i);
+    fec_pool_size = fec_num_threads;
+    fec_pool_started = 1;
+}
+
+void fec_set_threads(int n)
+{
+    if (n == 0) {
+        /* auto-detect */
+        long nproc = sysconf(_SC_NPROCESSORS_ONLN);
+        n = (nproc > 1) ? (int)nproc : 1;
+    }
+    if (n > FEC_MAX_THREADS)
+        n = FEC_MAX_THREADS;
+    fec_num_threads = n;
+    if (n > 1)
+        fec_pool_init();
+    else if (fec_pool_started)
+        fec_pool_shutdown_fn();
+}
+
+int fec_get_threads(void)
+{
+    return fec_num_threads;
+}
+
+void
+fec_encode_parallel(void *code0, char *data[], int k, int n, int sz)
+{
+    struct fec_parms *code = (struct fec_parms *)code0;
+    gf **src = (gf **)data;
+
+    if (GF_BITS > 8)
+        sz /= 2;
+
+    /* Set up work items: one per redundancy shard */
+    fec_work_count = n - k;
+    fec_current_work_type = FEC_WORK_ENCODE;
+    for (int i = 0; i < fec_work_count; i++) {
+        fec_work[i].code = code;
+        fec_work[i].src = src;
+        fec_work[i].dst = (gf *)data[k + i];
+        fec_work[i].index = k + i;
+        fec_work[i].sz = sz;
+        fec_work[i].k = k;
+    }
+
+    /* Wake workers and wait for completion */
+    pthread_barrier_wait(&fec_start_barrier);
+    pthread_barrier_wait(&fec_done_barrier);
+}
+
+/*
+ * Parallel fec_decode: parallelises the reconstruction loop.
+ * Called from fec_decode when threads > 1.
+ */
+static void
+fec_decode_parallel(struct fec_parms *code, gf **pkt, int *index, gf *dec_matrix, int k, int sz)
+{
+    /* Count lost rows and set up work items */
+    fec_work_count = 0;
+    fec_current_work_type = FEC_WORK_DECODE;
+
+    gf *dec_buf = code->dec_buf;
+    gf *new_pkt_ptrs[k];
+
+    for (int row = 0; row < k; row++) {
+        if (index[row] >= k) {
+            new_pkt_ptrs[row] = dec_buf + row * sz;
+            fec_work[fec_work_count].code = code;
+            fec_work[fec_work_count].dst = new_pkt_ptrs[row];
+            fec_work[fec_work_count].index = row;
+            fec_work[fec_work_count].sz = sz;
+            fec_work[fec_work_count].k = k;
+            fec_work[fec_work_count].dec_matrix = dec_matrix;
+            fec_work[fec_work_count].pkt = pkt;
+            fec_work_count++;
+        }
+    }
+
+    if (fec_work_count <= 1 || fec_num_threads <= 1) {
+        /* Not worth parallelising */
+        for (int i = 0; i < fec_work_count; i++) {
+            struct fec_work_item *w = &fec_work[i];
+            bzero(w->dst, sz * sizeof(gf));
+            for (int col = 0; col < k; col++)
+                addmul(w->dst, pkt[col], dec_matrix[w->index * k + col], sz);
+        }
+    } else {
+        pthread_barrier_wait(&fec_start_barrier);
+        pthread_barrier_wait(&fec_done_barrier);
+    }
+
+    /* Copy reconstructed packets to final destination */
+    for (int row = 0; row < k; row++) {
+        if (index[row] >= k) {
+            bcopy(new_pkt_ptrs[row], pkt[row], sz * sizeof(gf));
+        }
+    }
 }
 /*********** end of FEC code -- beginning of test code ************/
 

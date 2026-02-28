@@ -53,4 +53,9 @@ int fec_decode(void *code, void *pkt[], int index[], int sz) ;
 int get_k(void *code);
 int get_n(void *code);
 
+/* Thread pool for parallel FEC encode/decode */
+void fec_set_threads(int n);    /* 0=auto, 1=disabled */
+int fec_get_threads(void);
+void fec_encode_parallel(void *code, char *data[], int k, int n, int sz);
+
 /* end of file */

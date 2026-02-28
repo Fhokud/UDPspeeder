@@ -259,5 +259,30 @@ int run_fec_tests() {
         failures += test_rs_roundtrip_pattern(20, 30, 512, lose, 10, "lose-scattered");
     }
 
+    /* Multi-threaded RS tests: enable threads, re-run same tests */
+    printf("[rs MT round-trip: threads=2]\n");
+    fec_set_threads(2);
+    failures += test_rs_roundtrip(5, 8, 1500);
+    failures += test_rs_roundtrip(10, 15, 1024);
+    failures += test_rs_roundtrip(20, 30, 1024);
+    {
+        int lose[] = {5, 6, 10, 11, 15, 16, 20, 21, 25, 26};
+        failures += test_rs_roundtrip_pattern(20, 30, 512, lose, 10, "MT-lose-scattered");
+    }
+
+    printf("[rs MT round-trip: threads=4]\n");
+    fec_set_threads(4);
+    failures += test_rs_roundtrip(5, 8, 1500);
+    failures += test_rs_roundtrip(10, 15, 1024);
+    failures += test_rs_roundtrip(20, 30, 1024);
+    failures += test_rs_roundtrip(50, 75, 512);
+    {
+        int lose[] = {1, 3, 5, 7, 9};
+        failures += test_rs_roundtrip_pattern(10, 15, 1024, lose, 5, "MT-lose-odds");
+    }
+
+    /* Restore single-threaded */
+    fec_set_threads(1);
+
     return failures;
 }

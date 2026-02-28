@@ -15,7 +15,7 @@ SOURCES=${SOURCES0} my_ev.cpp -isystem libev
 NAME=speederv2
 
 
-FLAGS= -std=c++11   -Wall -Wextra -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers -MMD -MP ${OPT}
+FLAGS= -std=c++11   -Wall -Wextra -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers -pthread -MMD -MP ${OPT}
 
 ifdef SPE
 FLAGS += -DHAVE_PPC_SPE -Wa,-mspe
@@ -128,7 +128,7 @@ git_version:
 # --- Benchmark and test targets ---
 BENCH_SOURCES=bench/bench_main.cpp bench/bench_fec.cpp bench/bench_crc32.cpp bench/bench_packet.cpp lib/fec.cpp lib/rs.cpp crc32/Crc32.cpp packet_cook.cpp xor_spe.S
 TEST_SOURCES=bench/test_main.cpp bench/test_fec.cpp bench/test_crc32.cpp bench/test_packet.cpp lib/fec.cpp lib/rs.cpp crc32/Crc32.cpp packet_cook.cpp xor_spe.S
-BENCH_FLAGS=-std=c++11 -Wall -Wextra -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers -O2 -DBENCH_EXPOSE_INTERNALS -MMD -MP
+BENCH_FLAGS=-std=c++11 -Wall -Wextra -Wno-unused-variable -Wno-unused-parameter -Wno-missing-field-initializers -pthread -O2 -DBENCH_EXPOSE_INTERNALS -MMD -MP
 
 ifdef SPE
 BENCH_FLAGS += -DHAVE_PPC_SPE -Wa,-mspe

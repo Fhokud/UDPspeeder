@@ -11,11 +11,17 @@
 void rs_encode(void *code, char *data[], int size) {
     int k = get_k(code);
     int n = get_n(code);
+
+    int shards = n - k;
+    int threads = fec_get_threads();
+    if (threads > 1 && shards > 1) {
+        fec_encode_parallel(code, data, k, n, size);
+        return;
+    }
+
     for (int i = k; i < n; i++) {
         fec_encode(code, (void **)data, data[i], i, size);
     }
-
-    return;
 }
 
 int rs_decode(void *code, char *data[], int size) {

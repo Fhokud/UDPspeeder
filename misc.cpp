@@ -6,6 +6,7 @@
  */
 
 #include "misc.h"
+#include "lib/fec.h"
 
 char fifo_file[1000] = "";
 
@@ -601,6 +602,7 @@ void process_arg(int argc, char *argv[]) {
             {"persist-tun", no_argument, 0, 1},
             {"manual-set-tun", no_argument, 0, 1},
             {"interval", required_argument, 0, 'i'},
+            {"fec-threads", required_argument, 0, 1},
             {NULL, 0, 0, 0}};
     int option_index = 0;
     assert(g_fec_par.rs_from_str(rs_par_str) == 0);
@@ -862,6 +864,15 @@ void process_arg(int argc, char *argv[]) {
                 } else if (strcmp(long_options[option_index].name, "mssfix") == 0) {
                     sscanf(optarg, "%d", &mssfix);
                     mylog(log_warn, "mssfix=%d\n", mssfix);
+                } else if (strcmp(long_options[option_index].name, "fec-threads") == 0) {
+                    int threads = 0;
+                    sscanf(optarg, "%d", &threads);
+                    if (threads < 0 || threads > 8) {
+                        mylog(log_fatal, "fec-threads must be 0-8 (0=auto)\n");
+                        myexit(-1);
+                    }
+                    fec_set_threads(threads);
+                    mylog(log_info, "fec_threads=%d\n", fec_get_threads());
                 } else {
                     mylog(log_fatal, "unknown option\n");
                     myexit(-1);
