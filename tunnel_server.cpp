@@ -7,6 +7,7 @@
 
 #include "tunnel.h"
 #include "io_uring_recv.h"
+#include "win_iocp_recv.h"
 
 static void conn_timer_cb(struct ev_loop *loop, struct ev_timer *watcher, int revents);
 static void fec_encode_cb(struct ev_loop *loop, struct ev_timer *watcher, int revents);
@@ -124,12 +125,9 @@ void data_from_remote_or_fec_timeout_or_conn_timer(conn_info_t &conn_info, fd64_
         }
 
         int fd = fd_manager.to_fd(fd64);
-        /* Drain loop: process all queued packets in one callback invocation */
-        for (;;) {
-            data_len = recv(fd, data + sizeof(u32_t), max_data_len + 1, 0);
-            if (data_len <= 0) break;  /* EWOULDBLOCK — socket drained */
-            server_process_remote_packet(conn_info, fd64, data, data_len);
-        }
+        /* Receive with sizeof(u32_t) headroom for in-place conv header */
+        data_len = recv(fd, data + sizeof(u32_t), max_data_len + 1, 0);
+        server_process_remote_packet(conn_info, fd64, data, data_len);
         return;
     } else {
         assert(0 == 1);
@@ -255,19 +253,19 @@ static void local_listen_cb(struct ev_loop *loop, struct ev_io *watcher, int rev
 
     int local_listen_fd = watcher->fd;
 
-    /* Drain loop: process all queued packets in one callback invocation */
-    for (;;) {
-        char data[buf_len];
-        int data_len;
-        address_t::storage_t udp_new_addr_in = {0};
-        socklen_t udp_new_addr_len = sizeof(address_t::storage_t);
-        data_len = recvfrom(local_listen_fd, data, max_data_len + 1, 0,
-                            (struct sockaddr *)&udp_new_addr_in, &udp_new_addr_len);
-        if (data_len < 0) break;  /* EWOULDBLOCK — socket drained */
-
-        server_process_tunnel_packet(loop, local_listen_fd, data, data_len,
-                                      (struct sockaddr *)&udp_new_addr_in, udp_new_addr_len);
+    char data[buf_len];
+    int data_len;
+    address_t::storage_t udp_new_addr_in = {0};
+    socklen_t udp_new_addr_len = sizeof(address_t::storage_t);
+    data_len = recvfrom(local_listen_fd, data, max_data_len + 1, 0,
+                        (struct sockaddr *)&udp_new_addr_in, &udp_new_addr_len);
+    if (data_len < 0) {
+        mylog(log_error, "recv_from error,err=%s\n", get_sock_error());
+        return;
     }
+
+    server_process_tunnel_packet(loop, local_listen_fd, data, data_len,
+                                  (struct sockaddr *)&udp_new_addr_in, udp_new_addr_len);
 }
 
 static void remote_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
@@ -322,8 +320,35 @@ static void conn_timer_cb(struct ev_loop *loop, struct ev_timer *watcher, int re
 
 static void server_uring_drain(struct ev_loop *loop);
 
+#ifdef __MINGW32__
+static iocp_ctx_t server_iocp_ctx;
+static int server_iocp_listen_fd;
+static struct ev_loop *server_iocp_loop;
+
+static void server_iocp_idle_cb(struct ev_loop *loop, struct ev_idle *watcher, int revents) {
+    (void)loop; (void)watcher; (void)revents;
+}
+
+static void server_iocp_process(uint8_t tag_type, char *data, int data_len,
+                                 struct sockaddr *addr, int addr_len,
+                                 void *user_data) {
+    (void)user_data;
+
+    if (tag_type == IOCP_TAG_SERVER_LOCAL) {
+        server_process_tunnel_packet(server_iocp_loop, server_iocp_listen_fd,
+                                      data, data_len, addr, (socklen_t)addr_len);
+    }
+}
+#endif
+
 static void prepare_cb(struct ev_loop *loop, struct ev_prepare *watcher, int revents) {
     assert(!(revents & EV_ERROR));
+
+#ifdef __MINGW32__
+    if (server_iocp_ctx.available) {
+        iocp_drain(&server_iocp_ctx, server_iocp_process, NULL);
+    }
+#endif
 
     delay_manager.check();
 }
@@ -464,7 +489,7 @@ int tunnel_server_event_loop() {
     //	mylog(log_fatal,"add  udp_listen_fd error\n");
     //	myexit(-1);
     // }
-    int use_uring = 0;
+    int use_batch_recv = 0;
 #ifdef __linux__
     server_local_listen_fd = local_listen_fd;
     if (uring_init(&server_uring_ctx, 64, 256, buf_len) == 0) {
@@ -476,14 +501,31 @@ int tunnel_server_event_loop() {
         uring_add_multishot_recvmsg(&server_uring_ctx, local_listen_fd,
                                       uring_tag(URING_TAG_SERVER_LOCAL, 0));
         uring_submit(&server_uring_ctx);
-        use_uring = 1;
+        use_batch_recv = 1;
         mylog(log_info, "io_uring: active for server sockets\n");
+    }
+#endif
+
+#ifdef __MINGW32__
+    if (!use_batch_recv && iocp_init(&server_iocp_ctx, 32) == 0) {
+        server_iocp_listen_fd = local_listen_fd;
+        server_iocp_loop = loop;
+        /* Tunnel listen socket: recvfrom, no headroom (server_process_tunnel_packet
+         * receives data directly, not offset like client local) */
+        iocp_add_socket(&server_iocp_ctx, (SOCKET)local_listen_fd,
+                        IOCP_TAG_SERVER_LOCAL, 1, 0, 32);
+        use_batch_recv = 1;
+        mylog(log_info, "iocp: active for server tunnel socket\n");
+
+        static struct ev_idle iocp_idle;
+        ev_idle_init(&iocp_idle, server_iocp_idle_cb);
+        ev_idle_start(loop, &iocp_idle);
     }
 #endif
 
     struct ev_io local_listen_watcher;
     ev_io_init(&local_listen_watcher, local_listen_cb, local_listen_fd, EV_READ);
-    if (!use_uring)
+    if (!use_batch_recv)
         ev_io_start(loop, &local_listen_watcher);
 
     delay_manager.set_loop_and_cb(loop, delay_manager_cb);

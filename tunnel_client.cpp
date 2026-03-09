@@ -1,5 +1,6 @@
 #include "tunnel.h"
 #include "io_uring_recv.h"
+#include "win_iocp_recv.h"
 
 static void client_process_local_packet(conn_info_t &conn_info, char *data, int data_len,
                                          struct sockaddr *src_addr, socklen_t src_addr_len) {
@@ -126,20 +127,18 @@ void data_from_local_or_fec_timeout(conn_info_t &conn_info, int is_time_out) {
         mylog(log_trace, "out_n=%d\n", out_n);
         delay_send_batch(out_n, out_delay, dest, out_arr, out_len);
     } else {
-        /* Drain loop: process all queued packets in one callback invocation.
-           Reduces event-loop round-trips vs single-recv-per-callback. */
-        for (;;) {
-            char data[buf_len];
-            int data_len;
-            address_t::storage_t udp_new_addr_in = {0};
-            socklen_t udp_new_addr_len = sizeof(address_t::storage_t);
-            if ((data_len = recvfrom(local_listen_fd, data + sizeof(u32_t), max_data_len + 1, 0,
-                                     (struct sockaddr *)&udp_new_addr_in, &udp_new_addr_len)) == -1) {
-                break;  /* EWOULDBLOCK — socket drained */
-            }
-            client_process_local_packet(conn_info, data, data_len,
-                                         (struct sockaddr *)&udp_new_addr_in, udp_new_addr_len);
-        }
+        /* Single-packet path (fallback) */
+        char data[buf_len];
+        int data_len;
+        address_t::storage_t udp_new_addr_in = {0};
+        socklen_t udp_new_addr_len = sizeof(address_t::storage_t);
+        if ((data_len = recvfrom(local_listen_fd, data + sizeof(u32_t), max_data_len + 1, 0,
+                                 (struct sockaddr *)&udp_new_addr_in, &udp_new_addr_len)) == -1) {
+            mylog(log_debug, "recv_from error,this shouldnt happen,err=%s,but we can try to continue\n", get_sock_error());
+            return;
+        };
+        client_process_local_packet(conn_info, data, data_len,
+                                     (struct sockaddr *)&udp_new_addr_in, udp_new_addr_len);
     }
 }
 static void local_listen_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
@@ -165,13 +164,9 @@ static void remote_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) 
 
     int fd = fd_manager.to_fd(remote_fd64);
 
-    /* Drain loop: process all queued packets in one callback invocation */
-    for (;;) {
-        char data[buf_len];
-        int data_len = recv(fd, data, max_data_len + 1, 0);
-        if (data_len <= 0) break;  /* EWOULDBLOCK — socket drained */
-        client_process_remote_packet(conn_info, data, data_len);
-    }
+    char data[buf_len];
+    int data_len = recv(fd, data, max_data_len + 1, 0);
+    client_process_remote_packet(conn_info, data, data_len);
 }
 
 static void fifo_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
@@ -239,8 +234,39 @@ static conn_info_t *client_uring_conn_info;
 static void client_uring_drain(struct ev_loop *loop);
 #endif
 
+#ifdef __MINGW32__
+static iocp_ctx_t client_iocp_ctx;
+static conn_info_t *client_iocp_conn_info;
+
+static void iocp_idle_cb(struct ev_loop *loop, struct ev_idle *watcher, int revents) {
+    (void)loop; (void)watcher; (void)revents;
+    /* No-op — purpose is to prevent event loop from blocking */
+}
+
+static void client_iocp_process(uint8_t tag_type, char *data, int data_len,
+                                 struct sockaddr *addr, int addr_len,
+                                 void *user_data) {
+    conn_info_t &conn_info = *(conn_info_t *)user_data;
+
+    if (tag_type == IOCP_TAG_CLIENT_LOCAL) {
+        /* data has IOCP_RECV_HEADROOM bytes before it (headroom for conv header).
+         * Shift pointer back to include headroom, matching recvfrom path. */
+        client_process_local_packet(conn_info, data - IOCP_RECV_HEADROOM, data_len,
+                                     addr, (socklen_t)addr_len);
+    } else if (tag_type == IOCP_TAG_CLIENT_REMOTE) {
+        client_process_remote_packet(conn_info, data, data_len);
+    }
+}
+#endif
+
 static void prepare_cb(struct ev_loop *loop, struct ev_prepare *watcher, int revents) {
     assert(!(revents & EV_ERROR));
+
+#ifdef __MINGW32__
+    if (client_iocp_ctx.available) {
+        iocp_drain(&client_iocp_ctx, client_iocp_process, client_iocp_conn_info);
+    }
+#endif
 
     delay_manager.check();
 }
@@ -356,7 +382,7 @@ int tunnel_client_event_loop() {
 
     mylog(log_debug, "remote_fd64=%llu\n", remote_fd64);
 
-    int use_uring = 0;
+    int use_batch_recv = 0;
 #ifdef __linux__
     if (uring_init(&client_uring_ctx, 64, 256, buf_len) == 0) {
         g_uring_ctx = &client_uring_ctx;
@@ -370,22 +396,42 @@ int tunnel_client_event_loop() {
         uring_add_multishot_recv(&client_uring_ctx, remote_fd,
                                    uring_tag(URING_TAG_CLIENT_REMOTE, 0));
         uring_submit(&client_uring_ctx);
-        use_uring = 1;
+        use_batch_recv = 1;
         mylog(log_info, "io_uring: active for client sockets\n");
+    }
+#endif
+
+#ifdef __MINGW32__
+    if (!use_batch_recv && iocp_init(&client_iocp_ctx, 32) == 0) {
+        client_iocp_conn_info = &conn_info;
+        /* local_listen_fd: recvfrom with headroom for conv header */
+        iocp_add_socket(&client_iocp_ctx, (SOCKET)local_listen_fd,
+                        IOCP_TAG_CLIENT_LOCAL, 1, IOCP_RECV_HEADROOM, 32);
+        /* remote_fd: connected recv, no headroom */
+        iocp_add_socket(&client_iocp_ctx, (SOCKET)remote_fd,
+                        IOCP_TAG_CLIENT_REMOTE, 0, 0, 32);
+        use_batch_recv = 1;
+        mylog(log_info, "iocp: active for client sockets\n");
+
+        /* Keep event loop spinning so prepare_cb drains IOCP every iteration.
+         * Without this, the loop blocks in select/wepoll with no events. */
+        static struct ev_idle iocp_idle;
+        ev_idle_init(&iocp_idle, iocp_idle_cb);
+        ev_idle_start(loop, &iocp_idle);
     }
 #endif
 
     struct ev_io local_listen_watcher;
     local_listen_watcher.data = &conn_info;
     ev_io_init(&local_listen_watcher, local_listen_cb, local_listen_fd, EV_READ);
-    if (!use_uring)
+    if (!use_batch_recv)
         ev_io_start(loop, &local_listen_watcher);
 
     struct ev_io remote_watcher;
     remote_watcher.data = &conn_info;
     remote_watcher.u64 = remote_fd64;
     ev_io_init(&remote_watcher, remote_cb, remote_fd, EV_READ);
-    if (!use_uring)
+    if (!use_batch_recv)
         ev_io_start(loop, &remote_watcher);
 
     // ev.events = EPOLLIN;
