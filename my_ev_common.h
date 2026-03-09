@@ -12,4 +12,10 @@
 #define EV_WIN32_CLOSE_FD(fd) closesocket(fd)
 #define FD_SETSIZE 4096
 
+#if defined(USE_WEPOLL)
+/* Enable epoll backend via wepoll shim (wepoll_shim/sys/epoll.h) */
+#define EV_USE_EPOLL 1
+#define EV_USE_SELECT 0
+#endif
+
 #endif

@@ -11,7 +11,8 @@ cc_amd64=/toolchains/lede-sdk-17.01.2-x86-64_gcc-5.4.0_musl-1.1.16.Linux-x86_64/
 #cc_bcm2708=/home/wangyu/raspberry/tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian/bin/arm-linux-gnueabihf-g++ 
 
 
-SOURCES0=main.cpp log.cpp common.cpp lib/fec.cpp lib/rs.cpp packet.cpp packet_cook.cpp delay_manager.cpp fd_manager.cpp connection.cpp fec_manager.cpp misc.cpp tunnel_client.cpp tunnel_server.cpp io_uring_recv.cpp xor_spe.S
+SOURCES0_PORTABLE=main.cpp log.cpp common.cpp lib/fec.cpp lib/rs.cpp packet.cpp packet_cook.cpp delay_manager.cpp fd_manager.cpp connection.cpp fec_manager.cpp misc.cpp tunnel_client.cpp tunnel_server.cpp io_uring_recv.cpp
+SOURCES0=${SOURCES0_PORTABLE} xor_spe.S
 SOURCES=${SOURCES0} my_ev.cpp -isystem libev
 NAME=speederv2
 
@@ -118,7 +119,7 @@ release2: ${TARGETS} mingw_cross mingw_cross_wepoll mac_cross
 clean:
 	rm -f ${TAR}
 	rm -f ${NAME} ${NAME}_cross ${NAME}.exe ${NAME}_wepoll.exe ${NAME}_mac bench_udpspeeder.exe test_udpspeeder.exe
-	rm -f git_version.h
+	rm -f git_version.h wepoll.o
 	rm -f *.d bench/*.d lib/*.d crc32/*.d
 
 -include $(wildcard *.d bench/*.d lib/*.d crc32/*.d)
@@ -164,3 +165,16 @@ bench-mingw: git_version
 
 test-mingw: git_version
 	${cc_mingw64_cross} -o test_udpspeeder.exe -I. -Ibench ${TEST_CORE} ${BENCH_FLAGS} -static
+
+# Full tunnel binary for Win64 (select backend)
+mingw64_cross: git_version
+	${cc_mingw64_cross} -o ${NAME}.exe -I. -isystem libev ${SOURCES0_PORTABLE} my_ev.cpp ${FLAGS} -Wno-narrowing -ggdb -static -O2 -lws2_32
+
+# Full tunnel binary for Win64 (wepoll/IOCP backend)
+wepoll.o: wepoll.c
+	x86_64-w64-mingw32-gcc-posix -c -o wepoll.o wepoll.c -O2 \
+		-Depoll_create=wepoll_create -Depoll_create1=wepoll_create1 \
+		-Depoll_ctl=wepoll_ctl -Depoll_wait=wepoll_wait -Depoll_close=wepoll_close
+
+mingw64_wepoll: git_version wepoll.o
+	${cc_mingw64_cross} -o ${NAME}_wepoll.exe -I. -Iwepoll_shim -isystem libev ${SOURCES0_PORTABLE} my_ev.cpp wepoll.o ${FLAGS} -Wno-narrowing -DUSE_WEPOLL -ggdb -static -O2 -lws2_32
