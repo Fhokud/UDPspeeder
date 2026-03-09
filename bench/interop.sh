@@ -105,12 +105,15 @@ print('%d %d' % (valid, invalid))
 " > "$RECV_RESULT" 2>&1 &
 RECV_PID=$!
 
-# Start tunnel (io_uring disabled — QEMU can't translate those syscalls)
-UDPSPEEDER_NO_URING=1 $SERVER_CMD \
+# Start tunnel (io_uring disabled — QEMU can't translate those syscalls;
+# GSO disabled — QEMU user-mode doesn't byte-swap UDP_SEGMENT cmsg data,
+# so big-endian guests write a swapped segment size that the host kernel
+# misinterprets, sending one giant packet instead of N segments)
+UDPSPEEDER_NO_URING=1 UDPSPEEDER_NO_GSO=1 $SERVER_CMD \
     -s -l 127.0.0.1:$PORT_TUNNEL -r 127.0.0.1:$PORT_APP \
     $FEC_ARGS $KEY_ARGS --log-level $LOG_LEVEL >"$SERVER_LOG" 2>&1 &
 
-UDPSPEEDER_NO_URING=1 $CLIENT_CMD \
+UDPSPEEDER_NO_URING=1 UDPSPEEDER_NO_GSO=1 $CLIENT_CMD \
     -c -l 127.0.0.1:$PORT_CLIENT -r 127.0.0.1:$PORT_TUNNEL \
     $FEC_ARGS $KEY_ARGS --log-level $LOG_LEVEL >"$CLIENT_LOG" 2>&1 &
 
