@@ -1,12 +1,13 @@
 /*
- * sys/epoll.h — wepoll shim for libev on Windows
+ * sys/epoll.h — zero-overhead wepoll shim for libev on Windows
  *
- * Provides Linux-compatible int-based epoll API by wrapping wepoll's
- * HANDLE-based functions. libev's ev_epoll.c includes <sys/epoll.h>
- * and expects int return types; wepoll returns HANDLE (void*).
+ * wepoll returns HANDLE (void*), libev expects int backend_fd.
+ * Since libev creates exactly one epoll instance, we store a single
+ * global HANDLE and return a sentinel int. All inline, no branches
+ * on the hot path (epoll_ctl / epoll_wait).
  *
- * wepoll.c is compiled with renamed exports (wepoll_create, etc.)
- * to avoid symbol collisions with our int-based wrappers.
+ * wepoll.c must be compiled with renamed exports (-Depoll_create=wepoll_create
+ * etc.) to avoid symbol collisions.
  */
 #ifndef WEPOLL_SHIM_SYS_EPOLL_H
 #define WEPOLL_SHIM_SYS_EPOLL_H
@@ -32,7 +33,7 @@
 #define EPOLL_CTL_MOD 2
 #define EPOLL_CTL_DEL 3
 
-#define EPOLL_CLOEXEC 0x80000  /* no-op on Windows, but libev checks for it */
+#define EPOLL_CLOEXEC 0x80000  /* no-op on Windows */
 
 typedef union epoll_data {
     void    *ptr;
@@ -67,26 +68,18 @@ int wepoll_wait(WEPOLL_HANDLE ephnd, struct epoll_event *events,
 }
 #endif
 
-/* ---- HANDLE → int mapping (libev creates 1 epoll instance) ---- */
-
-#define _WEPOLL_FD_BASE 900
-static WEPOLL_HANDLE _wepoll_handles[4];
-static int _wepoll_count = 0;
-
-static inline WEPOLL_HANDLE _wepoll_fd_to_handle(int fd) {
-    int idx = fd - _WEPOLL_FD_BASE;
-    if (idx >= 0 && idx < 4) return _wepoll_handles[idx];
-    return NULL;
-}
+/* ---- Single-instance HANDLE (zero lookup overhead) ----
+ *
+ * libev creates exactly one epoll instance. We store the HANDLE in a
+ * global and return sentinel fd 900. epoll_ctl/epoll_wait go straight
+ * to the global — no table, no bounds check, no branch.
+ */
+static WEPOLL_HANDLE _wepoll_h;
 
 static inline int epoll_create(int size) {
     (void)size;
-    if (_wepoll_count >= 4) return -1;
-    WEPOLL_HANDLE h = wepoll_create1(0);
-    if (!h) return -1;
-    int idx = _wepoll_count++;
-    _wepoll_handles[idx] = h;
-    return _WEPOLL_FD_BASE + idx;
+    _wepoll_h = wepoll_create1(0);
+    return _wepoll_h ? 900 : -1;
 }
 
 static inline int epoll_create1(int flags) {
@@ -96,21 +89,18 @@ static inline int epoll_create1(int flags) {
 
 static inline int epoll_ctl(int epfd, int op, int fd,
                              struct epoll_event *event) {
-    WEPOLL_HANDLE h = _wepoll_fd_to_handle(epfd);
-    if (!h) return -1;
-    return wepoll_ctl(h, op, (WEPOLL_SOCKET)fd, event);
+    (void)epfd;
+    return wepoll_ctl(_wepoll_h, op, (WEPOLL_SOCKET)fd, event);
 }
 
 static inline int epoll_wait(int epfd, struct epoll_event *events,
                               int maxevents, int timeout) {
-    WEPOLL_HANDLE h = _wepoll_fd_to_handle(epfd);
-    if (!h) return -1;
-    return wepoll_wait(h, events, maxevents, timeout);
+    (void)epfd;
+    return wepoll_wait(_wepoll_h, events, maxevents, timeout);
 }
 
-/* ---- Stub out POSIX calls that ev_epoll.c uses ---- */
+/* ---- Stubs for POSIX calls in ev_epoll.c ---- */
 
-/* fcntl(backend_fd, F_SETFD, FD_CLOEXEC) — no-op on Windows */
 #ifndef F_SETFD
 #define F_SETFD 2
 #endif
