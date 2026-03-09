@@ -10,6 +10,7 @@
 #include "packet.h"
 #include "misc.h"
 #include "crc32c.h"
+#include "win_rio.h"
 
 cook_ctx_t cook_ctx = { {}, 0, 0, {}, 4, 32, 0, 0, 0 };
 
@@ -125,6 +126,11 @@ int my_send_batch(const dest_t &dest, char **data_arr, int *len_arr, int count) 
     }
     return ret;
 #elif defined(__MINGW32__)
+    /* RIO send path disabled: memcpy into registered buffers is slower than
+     * plain WSASendTo for FEC workloads with high send amplification (e.g.
+     * 20:10 FEC = 30 sends per recv). IOCP pre-posting (+25%) beats RIO (+4%)
+     * for this workload. Keep RIO code for future experimentation. */
+
     /*
      * Windows batch send via overlapped WSASendTo.
      * Each WSASendTo is non-blocking (overlapped with NULL event),

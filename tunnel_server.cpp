@@ -8,6 +8,7 @@
 #include "tunnel.h"
 #include "io_uring_recv.h"
 #include "win_iocp_recv.h"
+#include "win_rio.h"
 
 static void conn_timer_cb(struct ev_loop *loop, struct ev_timer *watcher, int revents);
 static void fec_encode_cb(struct ev_loop *loop, struct ev_timer *watcher, int revents);
@@ -322,10 +323,11 @@ static void server_uring_drain(struct ev_loop *loop);
 
 #ifdef __MINGW32__
 static iocp_ctx_t server_iocp_ctx;
-static int server_iocp_listen_fd;
-static struct ev_loop *server_iocp_loop;
+static rio_ctx_t server_rio_ctx;
+static int server_batch_listen_fd;
+static struct ev_loop *server_batch_loop;
 
-static void server_iocp_idle_cb(struct ev_loop *loop, struct ev_idle *watcher, int revents) {
+static void server_batch_idle_cb(struct ev_loop *loop, struct ev_idle *watcher, int revents) {
     (void)loop; (void)watcher; (void)revents;
 }
 
@@ -335,7 +337,18 @@ static void server_iocp_process(uint8_t tag_type, char *data, int data_len,
     (void)user_data;
 
     if (tag_type == IOCP_TAG_SERVER_LOCAL) {
-        server_process_tunnel_packet(server_iocp_loop, server_iocp_listen_fd,
+        server_process_tunnel_packet(server_batch_loop, server_batch_listen_fd,
+                                      data, data_len, addr, (socklen_t)addr_len);
+    }
+}
+
+static void server_rio_process(uint8_t tag_type, char *data, int data_len,
+                                struct sockaddr *addr, int addr_len,
+                                void *user_data) {
+    (void)user_data;
+
+    if (tag_type == RIO_TAG_SERVER_LOCAL) {
+        server_process_tunnel_packet(server_batch_loop, server_batch_listen_fd,
                                       data, data_len, addr, (socklen_t)addr_len);
     }
 }
@@ -345,7 +358,9 @@ static void prepare_cb(struct ev_loop *loop, struct ev_prepare *watcher, int rev
     assert(!(revents & EV_ERROR));
 
 #ifdef __MINGW32__
-    if (server_iocp_ctx.available) {
+    if (server_rio_ctx.available) {
+        rio_drain(&server_rio_ctx, server_rio_process, NULL);
+    } else if (server_iocp_ctx.available) {
         iocp_drain(&server_iocp_ctx, server_iocp_process, NULL);
     }
 #endif
@@ -507,19 +522,44 @@ int tunnel_server_event_loop() {
 #endif
 
 #ifdef __MINGW32__
-    if (!use_batch_recv && iocp_init(&server_iocp_ctx, 32) == 0) {
-        server_iocp_listen_fd = local_listen_fd;
-        server_iocp_loop = loop;
-        /* Tunnel listen socket: recvfrom, no headroom (server_process_tunnel_packet
-         * receives data directly, not offset like client local) */
+    /* IOCP is default (+25% throughput). RIO opt-in via UDPSPEEDER_USE_RIO=1. */
+    if (!use_batch_recv && !getenv("UDPSPEEDER_USE_RIO") &&
+        iocp_init(&server_iocp_ctx, 32) == 0) {
+        server_batch_listen_fd = local_listen_fd;
+        server_batch_loop = loop;
         iocp_add_socket(&server_iocp_ctx, (SOCKET)local_listen_fd,
                         IOCP_TAG_SERVER_LOCAL, 1, 0, 32);
         use_batch_recv = 1;
         mylog(log_info, "iocp: active for server tunnel socket\n");
 
         static struct ev_idle iocp_idle;
-        ev_idle_init(&iocp_idle, server_iocp_idle_cb);
+        ev_idle_init(&iocp_idle, server_batch_idle_cb);
         ev_idle_start(loop, &iocp_idle);
+    }
+
+    if (!use_batch_recv && rio_init(&server_rio_ctx, 32, 512, buf_len, buf_len) == 0) {
+        int rio_ok = 1;
+        if (rio_upgrade_listen_socket(local_listen_fd,
+                                       (struct sockaddr *)&local_addr.inner,
+                                       local_addr.get_len()) < 0)
+            rio_ok = 0;
+
+        if (rio_ok) {
+            server_batch_listen_fd = local_listen_fd;
+            server_batch_loop = loop;
+            g_rio_ctx = &server_rio_ctx;
+            rio_add_socket(&server_rio_ctx, (SOCKET)local_listen_fd,
+                           RIO_TAG_SERVER_LOCAL, 1, 0, 32);
+            use_batch_recv = 1;
+            mylog(log_info, "rio: active for server tunnel socket\n");
+
+            static struct ev_idle rio_idle;
+            ev_idle_init(&rio_idle, server_batch_idle_cb);
+            ev_idle_start(loop, &rio_idle);
+        } else {
+            rio_destroy(&server_rio_ctx);
+            mylog(log_info, "rio: socket upgrade failed, falling back\n");
+        }
     }
 #endif
 

@@ -1,6 +1,7 @@
 #include "tunnel.h"
 #include "io_uring_recv.h"
 #include "win_iocp_recv.h"
+#include "win_rio.h"
 
 static void client_process_local_packet(conn_info_t &conn_info, char *data, int data_len,
                                          struct sockaddr *src_addr, socklen_t src_addr_len) {
@@ -237,8 +238,10 @@ static void client_uring_drain(struct ev_loop *loop);
 #ifdef __MINGW32__
 static iocp_ctx_t client_iocp_ctx;
 static conn_info_t *client_iocp_conn_info;
+static rio_ctx_t client_rio_ctx;
+static conn_info_t *client_rio_conn_info;
 
-static void iocp_idle_cb(struct ev_loop *loop, struct ev_idle *watcher, int revents) {
+static void batch_recv_idle_cb(struct ev_loop *loop, struct ev_idle *watcher, int revents) {
     (void)loop; (void)watcher; (void)revents;
     /* No-op — purpose is to prevent event loop from blocking */
 }
@@ -249,11 +252,22 @@ static void client_iocp_process(uint8_t tag_type, char *data, int data_len,
     conn_info_t &conn_info = *(conn_info_t *)user_data;
 
     if (tag_type == IOCP_TAG_CLIENT_LOCAL) {
-        /* data has IOCP_RECV_HEADROOM bytes before it (headroom for conv header).
-         * Shift pointer back to include headroom, matching recvfrom path. */
         client_process_local_packet(conn_info, data - IOCP_RECV_HEADROOM, data_len,
                                      addr, (socklen_t)addr_len);
     } else if (tag_type == IOCP_TAG_CLIENT_REMOTE) {
+        client_process_remote_packet(conn_info, data, data_len);
+    }
+}
+
+static void client_rio_process(uint8_t tag_type, char *data, int data_len,
+                                struct sockaddr *addr, int addr_len,
+                                void *user_data) {
+    conn_info_t &conn_info = *(conn_info_t *)user_data;
+
+    if (tag_type == RIO_TAG_CLIENT_LOCAL) {
+        client_process_local_packet(conn_info, data - RIO_RECV_HEADROOM, data_len,
+                                     addr, (socklen_t)addr_len);
+    } else if (tag_type == RIO_TAG_CLIENT_REMOTE) {
         client_process_remote_packet(conn_info, data, data_len);
     }
 }
@@ -263,7 +277,9 @@ static void prepare_cb(struct ev_loop *loop, struct ev_prepare *watcher, int rev
     assert(!(revents & EV_ERROR));
 
 #ifdef __MINGW32__
-    if (client_iocp_ctx.available) {
+    if (client_rio_ctx.available) {
+        rio_drain(&client_rio_ctx, client_rio_process, client_rio_conn_info);
+    } else if (client_iocp_ctx.available) {
         iocp_drain(&client_iocp_ctx, client_iocp_process, client_iocp_conn_info);
     }
 #endif
@@ -402,22 +418,61 @@ int tunnel_client_event_loop() {
 #endif
 
 #ifdef __MINGW32__
-    if (!use_batch_recv && iocp_init(&client_iocp_ctx, 32) == 0) {
+    /* IOCP pre-posting is the default (+25% throughput over baseline).
+     * RIO available as opt-in via UDPSPEEDER_USE_RIO=1 env var for
+     * experimentation — currently only +4% and requires socket upgrades. */
+    if (!use_batch_recv && !getenv("UDPSPEEDER_USE_RIO") &&
+        iocp_init(&client_iocp_ctx, 32) == 0) {
         client_iocp_conn_info = &conn_info;
-        /* local_listen_fd: recvfrom with headroom for conv header */
         iocp_add_socket(&client_iocp_ctx, (SOCKET)local_listen_fd,
                         IOCP_TAG_CLIENT_LOCAL, 1, IOCP_RECV_HEADROOM, 32);
-        /* remote_fd: connected recv, no headroom */
         iocp_add_socket(&client_iocp_ctx, (SOCKET)remote_fd,
                         IOCP_TAG_CLIENT_REMOTE, 0, 0, 32);
         use_batch_recv = 1;
         mylog(log_info, "iocp: active for client sockets\n");
 
-        /* Keep event loop spinning so prepare_cb drains IOCP every iteration.
-         * Without this, the loop blocks in select/wepoll with no events. */
         static struct ev_idle iocp_idle;
-        ev_idle_init(&iocp_idle, iocp_idle_cb);
+        ev_idle_init(&iocp_idle, batch_recv_idle_cb);
         ev_idle_start(loop, &iocp_idle);
+    }
+
+    if (!use_batch_recv && rio_init(&client_rio_ctx, 32, 512, buf_len, buf_len) == 0) {
+        /* Upgrade sockets to WSA_FLAG_REGISTERED_IO */
+        int rio_ok = 1;
+        if (rio_upgrade_listen_socket(local_listen_fd,
+                                       (struct sockaddr *)&local_addr.inner,
+                                       local_addr.get_len()) < 0)
+            rio_ok = 0;
+
+        /* Close fd_manager mapping BEFORE upgrade — rio_upgrade closes
+         * the old socket, and fd64_close would double-close. */
+        if (rio_ok) {
+            fd_manager.fd64_close(remote_fd64);
+            if (rio_upgrade_connected_socket(remote_fd,
+                                              (struct sockaddr *)&remote_addr.inner,
+                                              remote_addr.get_len()) < 0)
+                rio_ok = 0;
+        }
+
+        if (rio_ok) {
+            remote_fd64 = fd_manager.create(remote_fd);
+
+            client_rio_conn_info = &conn_info;
+            g_rio_ctx = &client_rio_ctx;
+            rio_add_socket(&client_rio_ctx, (SOCKET)local_listen_fd,
+                           RIO_TAG_CLIENT_LOCAL, 1, RIO_RECV_HEADROOM, 32);
+            rio_add_socket(&client_rio_ctx, (SOCKET)remote_fd,
+                           RIO_TAG_CLIENT_REMOTE, 0, 0, 32);
+            use_batch_recv = 1;
+            mylog(log_info, "rio: active for client sockets\n");
+
+            static struct ev_idle rio_idle;
+            ev_idle_init(&rio_idle, batch_recv_idle_cb);
+            ev_idle_start(loop, &rio_idle);
+        } else {
+            rio_destroy(&client_rio_ctx);
+            mylog(log_info, "rio: socket upgrade failed, falling back\n");
+        }
     }
 #endif
 
