@@ -124,9 +124,12 @@ void data_from_remote_or_fec_timeout_or_conn_timer(conn_info_t &conn_info, fd64_
         }
 
         int fd = fd_manager.to_fd(fd64);
-        /* Receive with sizeof(u32_t) headroom for in-place conv header */
-        data_len = recv(fd, data + sizeof(u32_t), max_data_len + 1, 0);
-        server_process_remote_packet(conn_info, fd64, data, data_len);
+        /* Drain loop: process all queued packets in one callback invocation */
+        for (;;) {
+            data_len = recv(fd, data + sizeof(u32_t), max_data_len + 1, 0);
+            if (data_len <= 0) break;  /* EWOULDBLOCK — socket drained */
+            server_process_remote_packet(conn_info, fd64, data, data_len);
+        }
         return;
     } else {
         assert(0 == 1);
@@ -252,19 +255,19 @@ static void local_listen_cb(struct ev_loop *loop, struct ev_io *watcher, int rev
 
     int local_listen_fd = watcher->fd;
 
-    char data[buf_len];
-    int data_len;
-    address_t::storage_t udp_new_addr_in = {0};
-    socklen_t udp_new_addr_len = sizeof(address_t::storage_t);
-    data_len = recvfrom(local_listen_fd, data, max_data_len + 1, 0,
-                        (struct sockaddr *)&udp_new_addr_in, &udp_new_addr_len);
-    if (data_len < 0) {
-        mylog(log_error, "recv_from error,err=%s\n", get_sock_error());
-        return;
-    }
+    /* Drain loop: process all queued packets in one callback invocation */
+    for (;;) {
+        char data[buf_len];
+        int data_len;
+        address_t::storage_t udp_new_addr_in = {0};
+        socklen_t udp_new_addr_len = sizeof(address_t::storage_t);
+        data_len = recvfrom(local_listen_fd, data, max_data_len + 1, 0,
+                            (struct sockaddr *)&udp_new_addr_in, &udp_new_addr_len);
+        if (data_len < 0) break;  /* EWOULDBLOCK — socket drained */
 
-    server_process_tunnel_packet(loop, local_listen_fd, data, data_len,
-                                  (struct sockaddr *)&udp_new_addr_in, udp_new_addr_len);
+        server_process_tunnel_packet(loop, local_listen_fd, data, data_len,
+                                      (struct sockaddr *)&udp_new_addr_in, udp_new_addr_len);
+    }
 }
 
 static void remote_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {

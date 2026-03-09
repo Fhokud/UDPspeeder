@@ -126,18 +126,20 @@ void data_from_local_or_fec_timeout(conn_info_t &conn_info, int is_time_out) {
         mylog(log_trace, "out_n=%d\n", out_n);
         delay_send_batch(out_n, out_delay, dest, out_arr, out_len);
     } else {
-        /* Single-packet path (fallback) */
-        char data[buf_len];
-        int data_len;
-        address_t::storage_t udp_new_addr_in = {0};
-        socklen_t udp_new_addr_len = sizeof(address_t::storage_t);
-        if ((data_len = recvfrom(local_listen_fd, data + sizeof(u32_t), max_data_len + 1, 0,
-                                 (struct sockaddr *)&udp_new_addr_in, &udp_new_addr_len)) == -1) {
-            mylog(log_debug, "recv_from error,this shouldnt happen,err=%s,but we can try to continue\n", get_sock_error());
-            return;
-        };
-        client_process_local_packet(conn_info, data, data_len,
-                                     (struct sockaddr *)&udp_new_addr_in, udp_new_addr_len);
+        /* Drain loop: process all queued packets in one callback invocation.
+           Reduces event-loop round-trips vs single-recv-per-callback. */
+        for (;;) {
+            char data[buf_len];
+            int data_len;
+            address_t::storage_t udp_new_addr_in = {0};
+            socklen_t udp_new_addr_len = sizeof(address_t::storage_t);
+            if ((data_len = recvfrom(local_listen_fd, data + sizeof(u32_t), max_data_len + 1, 0,
+                                     (struct sockaddr *)&udp_new_addr_in, &udp_new_addr_len)) == -1) {
+                break;  /* EWOULDBLOCK — socket drained */
+            }
+            client_process_local_packet(conn_info, data, data_len,
+                                         (struct sockaddr *)&udp_new_addr_in, udp_new_addr_len);
+        }
     }
 }
 static void local_listen_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
@@ -163,9 +165,13 @@ static void remote_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) 
 
     int fd = fd_manager.to_fd(remote_fd64);
 
-    char data[buf_len];
-    int data_len = recv(fd, data, max_data_len + 1, 0);
-    client_process_remote_packet(conn_info, data, data_len);
+    /* Drain loop: process all queued packets in one callback invocation */
+    for (;;) {
+        char data[buf_len];
+        int data_len = recv(fd, data, max_data_len + 1, 0);
+        if (data_len <= 0) break;  /* EWOULDBLOCK — socket drained */
+        client_process_remote_packet(conn_info, data, data_len);
+    }
 }
 
 static void fifo_cb(struct ev_loop *loop, struct ev_io *watcher, int revents) {
