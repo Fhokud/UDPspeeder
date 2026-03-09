@@ -38,6 +38,12 @@ jobs:
       - name: Throughput test (recvfrom baseline)
         run: UDPSPEEDER_NO_URING=1 bash bench/throughput.sh ./speederv2 --iterations 3 --duration 5
 
+      - name: Throughput test (FEC + GSO)
+        run: bash bench/throughput.sh ./speederv2 --fec 20:10 --iterations 3 --duration 5
+
+      - name: Throughput test (FEC + no GSO)
+        run: UDPSPEEDER_NO_GSO=1 bash bench/throughput.sh ./speederv2 --fec 20:10 --iterations 3 --duration 5
+
       - name: Store benchmark results
         if: github.ref == 'refs/heads/branch_libev'
         uses: benchmark-action/github-action-benchmark@v1
