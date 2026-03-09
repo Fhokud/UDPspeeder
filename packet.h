@@ -11,6 +11,7 @@
 #include "common.h"
 #include "fd_manager.h"
 #include "packet_cook.h"
+#include "send_slab.h"
 
 extern cook_ctx_t cook_ctx;
 
@@ -20,6 +21,7 @@ extern u64_t packet_recv_count;
 extern u64_t dup_packet_recv_count;
 extern int disable_replay_filter;
 extern int random_drop;
+extern send_slab_pool_t *g_slab_pool;
 
 int my_send(const dest_t &dest, char *data, int len);
 int my_send_batch(const dest_t &dest, char **data_arr, int *len_arr, int count);

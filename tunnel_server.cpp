@@ -9,6 +9,7 @@
 #include "io_uring_recv.h"
 #include "win_iocp_recv.h"
 #include "win_rio.h"
+#include "send_slab.h"
 
 static void conn_timer_cb(struct ev_loop *loop, struct ev_timer *watcher, int revents);
 static void fec_encode_cb(struct ev_loop *loop, struct ev_timer *watcher, int revents);
@@ -608,6 +609,12 @@ int tunnel_server_event_loop() {
     ev_prepare prepare_watcher;
     ev_init(&prepare_watcher, prepare_cb);
     ev_prepare_start(loop, &prepare_watcher);
+
+    /* Init send slab pool for GSO batching */
+    static send_slab_pool_t server_slab_pool;
+    if (slab_pool_init(&server_slab_pool, 4, slab_max_segments, buf_len) == 0) {
+        g_slab_pool = &server_slab_pool;
+    }
 
     ev_run(loop, 0);
 

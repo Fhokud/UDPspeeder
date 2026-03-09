@@ -2,6 +2,7 @@
 #include "io_uring_recv.h"
 #include "win_iocp_recv.h"
 #include "win_rio.h"
+#include "send_slab.h"
 
 static void client_process_local_packet(conn_info_t &conn_info, char *data, int data_len,
                                          struct sockaddr *src_addr, socklen_t src_addr_len) {
@@ -547,6 +548,12 @@ int tunnel_client_event_loop() {
     ev_prepare prepare_watcher;
     ev_init(&prepare_watcher, prepare_cb);
     ev_prepare_start(loop, &prepare_watcher);
+
+    /* Init send slab pool for GSO batching */
+    static send_slab_pool_t client_slab_pool;
+    if (slab_pool_init(&client_slab_pool, 4, slab_max_segments, buf_len) == 0) {
+        g_slab_pool = &client_slab_pool;
+    }
 
     mylog(log_info, "now listening at %s\n", local_addr.get_str());
 

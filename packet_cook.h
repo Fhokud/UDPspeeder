@@ -11,6 +11,7 @@ struct cook_ctx_t {
     int disable_checksum;
     int disable_obscure;
     int disable_xor;
+    int force_iv_len;       /* >0: use fixed IV length (for GSO uniform sizes) */
 };
 
 void cook_ctx_prepare_key(cook_ctx_t *ctx);

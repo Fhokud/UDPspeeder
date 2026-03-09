@@ -11,6 +11,7 @@
 #include "misc.h"
 #include "crc32c.h"
 #include "win_rio.h"
+#include "send_slab.h"
 
 cook_ctx_t cook_ctx = { {}, 0, 0, {}, 4, 32, 0, 0, 0 };
 
@@ -23,6 +24,7 @@ typedef u64_t anti_replay_seq_t;
 int disable_replay_filter = 0;
 
 int random_drop = 0;
+send_slab_pool_t *g_slab_pool = NULL;
 
 /*
 int sendto_fd_ip_port (int fd,u32_t ip,int port,char * buf, int len,int flags)
@@ -61,12 +63,6 @@ int my_send_batch(const dest_t &dest, char **data_arr, int *len_arr, int count) 
     if (count <= 0) return 0;
     if (count == 1) return my_send(dest, data_arr[0], len_arr[0]);
 
-    /* Cook all packets */
-    if (dest.cook) {
-        for (int i = 0; i < count; i++)
-            do_cook(&cook_ctx, data_arr[i], len_arr[i]);
-    }
-
     /* Resolve fd and optional destination address.
      * Copy address out of const dest (same as sendto_fd_addr taking addr by value). */
     int fd;
@@ -99,6 +95,22 @@ int my_send_batch(const dest_t &dest, char **data_arr, int *len_arr, int count) 
             for (int i = 0; i < count; i++)
                 my_send(dest, data_arr[i], len_arr[i]);
             return count;
+    }
+
+    /* Try slab path: cook + pack + GSO in one call.
+     * slab_cook_pack_submit handles cooking internally and falls back
+     * to sendmmsg/WSASendTo if GSO is unavailable. */
+    if (g_slab_pool) {
+        return slab_cook_pack_submit(g_slab_pool,
+                                     &cook_ctx, dest.cook,
+                                     data_arr, len_arr, count,
+                                     fd, addr_ptr, addr_len);
+    }
+
+    /* Legacy path: cook + sendmmsg/WSASendTo (no slab) */
+    if (dest.cook) {
+        for (int i = 0; i < count; i++)
+            do_cook(&cook_ctx, data_arr[i], len_arr[i]);
     }
 
 #ifdef __linux__

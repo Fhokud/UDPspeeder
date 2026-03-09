@@ -363,7 +363,8 @@ do_obscure(cook_ctx_t *ctx, char *data, int &len)
     assert(len >= 0);
     assert(len < cook_buf_len);
 
-    int iv_len = random_between(ctx->iv_min, ctx->iv_max);
+    int iv_len = (ctx->force_iv_len > 0) ? ctx->force_iv_len
+                                         : random_between(ctx->iv_min, ctx->iv_max);
     get_fake_random_chars(data + len, iv_len);
     data[iv_len + len] = (uint8_t)iv_len;
     xor_with_pattern(data, len, data + len, iv_len);
