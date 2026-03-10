@@ -25,25 +25,64 @@ jobs:
         include:
           - name: x86_64
             packages: ""
+            toolchain_url: ""
             target: all
             make_args: ""
             src_bin: speederv2
             release_bin: speederv2_linux_x86_64
           - name: aarch64
             packages: g++-aarch64-linux-gnu
+            toolchain_url: ""
             target: all-cross
             make_args: "CC=aarch64-linux-gnu-g++"
             src_bin: speederv2_cross
             release_bin: speederv2_linux_aarch64
+          - name: mips
+            packages: g++-mips-linux-gnu
+            toolchain_url: ""
+            target: all-cross
+            make_args: "CC=mips-linux-gnu-g++"
+            src_bin: speederv2_cross
+            release_bin: speederv2_linux_mips
+          - name: powerpc
+            packages: zstd
+            toolchain_url: "https://downloads.openwrt.org/releases/25.12.0-rc5/targets/mpc85xx/p1010/openwrt-toolchain-25.12.0-rc5-mpc85xx-p1010_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+            target: all-cross
+            make_args: "SPE=1"
+            src_bin: speederv2_cross
+            release_bin: speederv2_linux_powerpc
+          - name: riscv64
+            packages: zstd
+            toolchain_url: "https://downloads.openwrt.org/releases/24.10.0/targets/sifiveu/generic/openwrt-toolchain-24.10.0-sifiveu-generic_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
+            target: all-cross
+            make_args: ""
+            src_bin: speederv2_cross
+            release_bin: speederv2_linux_riscv64
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install toolchain
+      - name: Install packages
         if: matrix.packages != ''
         run: sudo apt-get update && sudo apt-get install -y ${{ matrix.packages }}
 
+      - name: Download OpenWrt toolchain
+        if: matrix.toolchain_url != ''
+        run: |
+          curl -fSL "${{ matrix.toolchain_url }}" -o toolchain.tar.zst
+          mkdir -p /tmp/openwrt-toolchain
+          tar --zstd -xf toolchain.tar.zst -C /tmp/openwrt-toolchain --strip-components=1
+          OPENWRT_GXX=$(find /tmp/openwrt-toolchain -name '*-g++' -path '*/bin/*' | head -1)
+          echo "OPENWRT_GXX=${OPENWRT_GXX}" >> "$GITHUB_ENV"
+          echo "STAGING_DIR=/tmp/openwrt-toolchain" >> "$GITHUB_ENV"
+          echo "Found toolchain: ${OPENWRT_GXX}"
+
       - name: Build production binary
-        run: make ${{ matrix.target }} ${{ matrix.make_args }}
+        run: |
+          ARGS="${{ matrix.make_args }}"
+          if [ -n "${OPENWRT_GXX:-}" ]; then
+            ARGS="CC=${OPENWRT_GXX} ${ARGS}"
+          fi
+          make ${{ matrix.target }} ${ARGS}
 
       - name: Verify binary
         run: file ${{ matrix.src_bin }}
@@ -57,8 +96,32 @@ jobs:
           name: ${{ matrix.release_bin }}
           path: ${{ matrix.release_bin }}
 
+  build-windows:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mingw-w64
+        run: sudo apt-get update && sudo apt-get install -y g++-mingw-w64-x86-64
+
+      - name: Build Windows tunnel (wepoll/IOCP)
+        run: make mingw64_wepoll
+
+      - name: Verify binary
+        run: file speederv2_wepoll.exe
+
+      - name: Rename binary
+        run: mv speederv2_wepoll.exe speederv2_windows_x86_64.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: speederv2_windows_x86_64.exe
+          path: speederv2_windows_x86_64.exe
+
   release:
-    needs: build
+    needs: [build, build-windows]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
