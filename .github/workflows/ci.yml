@@ -199,6 +199,35 @@ jobs:
             ${{ matrix.prod_bin }}
             bench/profile.sh
 
+  build-windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mingw-w64
+        run: sudo apt-get update && sudo apt-get install -y g++-mingw-w64-x86-64
+
+      - name: Build Windows test binary
+        run: make test-mingw
+
+      - name: Build Windows bench binary
+        run: make bench-mingw
+
+      - name: Build Windows tunnel (wepoll/IOCP)
+        run: make mingw64_wepoll
+
+      - name: Verify binaries
+        run: file test_udpspeeder.exe bench_udpspeeder.exe speederv2_wepoll.exe
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: udpspeeder-windows-x86_64
+          path: |
+            test_udpspeeder.exe
+            bench_udpspeeder.exe
+            speederv2_wepoll.exe
+
   interop:
     runs-on: ubuntu-latest
     needs: [build-static]
