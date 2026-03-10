@@ -10,9 +10,34 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
-         background: #0d1117; color: #c9d1d9; padding: 2rem; max-width: 960px; margin: 0 auto; }
+         background: #0d1117; color: #c9d1d9; padding: 0; }
+  .container { max-width: 960px; margin: 0 auto; padding: 0 2rem 2rem; }
+
+  /* ===== Hero / Nav ===== */
+  .hero { background: linear-gradient(135deg, #161b22 0%, #0d1117 100%);
+          border-bottom: 1px solid #21262d; padding: 2rem 0 1.5rem; margin-bottom: 1.5rem; }
+  .hero-inner { max-width: 960px; margin: 0 auto; padding: 0 2rem; }
+  .hero h1 { color: #58a6ff; font-size: 1.6rem; margin-bottom: 0.2rem; }
+  .hero .tagline { color: #8b949e; font-size: 0.9rem; margin-bottom: 1.2rem; }
+  .hero-stats { display: flex; gap: 2rem; flex-wrap: wrap; margin-bottom: 1.2rem; }
+  .hero-stat { text-align: center; min-width: 100px; }
+  .hero-stat-value { font-size: 1.6rem; font-weight: 700; }
+  .hero-stat-value.green { color: #3fb950; }
+  .hero-stat-value.blue { color: #58a6ff; }
+  .hero-stat-value.purple { color: #d2a8ff; }
+  .hero-stat-value.orange { color: #f0883e; }
+  .hero-stat-label { font-size: 0.75rem; color: #8b949e; }
+  nav { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  nav a { display: inline-block; padding: 0.4rem 0.8rem; background: #21262d; border: 1px solid #30363d;
+          border-radius: 6px; color: #c9d1d9; text-decoration: none; font-size: 0.8rem;
+          transition: background 0.15s, border-color 0.15s; }
+  nav a:hover { background: #30363d; border-color: #58a6ff; color: #58a6ff; }
+  nav a.external { color: #8b949e; }
+  nav a.external:hover { color: #58a6ff; }
+
+  /* ===== Content ===== */
   h1 { color: #58a6ff; margin-bottom: 0.3rem; font-size: 1.5rem; }
-  .subtitle { color: #8b949e; margin-bottom: 2rem; font-size: 0.9rem; }
+  .subtitle { color: #8b949e; margin-bottom: 1.5rem; font-size: 0.9rem; }
   h2 { color: #58a6ff; margin: 2rem 0 1rem; font-size: 1.1rem; border-bottom: 1px solid #21262d; padding-bottom: 0.5rem; }
   h3 { color: #c9d1d9; margin: 1.5rem 0 0.5rem; font-size: 0.95rem; }
   .row { display: flex; align-items: center; margin: 0.4rem 0; gap: 0.5rem; }
@@ -23,9 +48,14 @@
   .bar.after  { top: 15px; background: #3fb950; opacity: 0.9; }
   .bar.ppc-old { top: 0; background: #f85149; opacity: 0.7; }
   .bar.ppc-new { top: 15px; background: #d2a8ff; opacity: 0.9; }
+  .bar.win { top: 15px; background: #f0883e; opacity: 0.9; }
+  .bar.gso-on { top: 0; background: #3fb950; opacity: 0.9; }
+  .bar.gso-off { top: 15px; background: #8b949e; opacity: 0.7; }
+  .bar.uring { top: 0; background: #58a6ff; opacity: 0.9; }
+  .bar.recvfrom { top: 15px; background: #8b949e; opacity: 0.7; }
   .value { width: 200px; font-size: 0.8rem; color: #c9d1d9; flex-shrink: 0; display: flex; gap: 0.6rem; align-items: center; }
   .speedup { color: #3fb950; font-weight: 700; font-size: 0.9rem; }
-  .legend { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; font-size: 0.85rem; }
+  .legend { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; font-size: 0.85rem; flex-wrap: wrap; }
   .legend-item { display: flex; align-items: center; gap: 0.4rem; }
   .legend-swatch { width: 14px; height: 14px; border-radius: 2px; }
   .legend-swatch.before { background: #f85149; opacity: 0.7; }
@@ -33,35 +63,217 @@
   .legend-swatch.ppc-old { background: #f85149; opacity: 0.7; }
   .legend-swatch.ppc-new { background: #d2a8ff; opacity: 0.9; }
   .summary { background: #161b22; border: 1px solid #21262d; border-radius: 6px; padding: 1.2rem; margin-bottom: 1.5rem; }
-  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; }
   .stat { text-align: center; }
   .stat-value { font-size: 1.8rem; font-weight: 700; color: #3fb950; }
   .stat-value.purple { color: #d2a8ff; }
+  .stat-value.blue { color: #58a6ff; }
+  .stat-value.orange { color: #f0883e; }
   .stat-label { font-size: 0.8rem; color: #8b949e; }
   .note { color: #8b949e; font-size: 0.75rem; margin-top: 2rem; }
   .section-sep { border: none; border-top: 2px solid #21262d; margin: 3rem 0; }
-  .dashlinks { background: #161b22; border: 1px solid #21262d; border-radius: 6px; padding: 1rem; margin: 1rem 0; font-size: 0.85rem; }
-  .dashlinks a { margin-right: 1.5rem; }
   a { color: #58a6ff; }
+
+  /* ===== Platform table ===== */
+  .platform-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.85rem; }
+  .platform-table th { text-align: left; padding: 0.5rem 0.8rem; color: #8b949e; border-bottom: 1px solid #21262d;
+                        font-weight: 600; font-size: 0.8rem; }
+  .platform-table td { padding: 0.4rem 0.8rem; border-bottom: 1px solid #161b22; }
+  .platform-table tr:hover td { background: #161b22; }
+  .check { color: #3fb950; }
+  .cross { color: #f85149; }
+  .dash { color: #484f58; }
+  .chip { display: inline-block; padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.75rem;
+          font-weight: 600; margin: 0.1rem 0.2rem 0.1rem 0; }
+  .chip-green { background: #1a3a2a; color: #3fb950; }
+  .chip-blue { background: #1a2a3a; color: #58a6ff; }
+  .chip-purple { background: #2a1a3a; color: #d2a8ff; }
+  .chip-orange { background: #3a2a1a; color: #f0883e; }
+  .chip-gray { background: #21262d; color: #8b949e; }
+
+  /* ===== Throughput bars (bigger is better) ===== */
+  .tp-row { display: flex; align-items: center; margin: 0.5rem 0; gap: 0.5rem; }
+  .tp-label { width: 180px; font-size: 0.82rem; color: #8b949e; flex-shrink: 0; text-align: right; padding-right: 0.8rem; }
+  .tp-bar-wrap { flex: 1; height: 24px; background: #161b22; border-radius: 3px; position: relative; }
+  .tp-bar { height: 100%; border-radius: 3px; min-width: 2px; transition: width 0.3s; }
+  .tp-bar.green { background: #3fb950; opacity: 0.85; }
+  .tp-bar.blue { background: #58a6ff; opacity: 0.85; }
+  .tp-bar.gray { background: #484f58; opacity: 0.7; }
+  .tp-bar.orange { background: #f0883e; opacity: 0.85; }
+  .tp-val { width: 100px; font-size: 0.82rem; color: #c9d1d9; flex-shrink: 0; font-weight: 600; }
 </style>
 </head>
 <body>
 
-<h1>UDPspeeder Optimization Results</h1>
-<p class="subtitle">Microbenchmark comparison dashboards &mdash; lower is better (ns/op)</p>
+<!-- ===== Hero ===== -->
+<div class="hero">
+<div class="hero-inner">
+  <h1>UDPspeeder Optimization Results</h1>
+  <p class="tagline">10-phase optimization of a UDP FEC tunnel &mdash; SIMD, io_uring, GSO, 5 ISAs, Win64</p>
 
-<div class="dashlinks">
-  <strong>Trend dashboards:</strong>
-  <a href="dev/bench/">x86_64 microbench</a>
-  <a href="dev/throughput/">x86_64 throughput</a>
-  <a href="dev/bench-powerpc/">PPC e500v2 (QEMU)</a>
-  <a href="dev/bench-powerpc-baseline/">PPC e500v2 baseline</a>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="hero-stat-value green">970</div>
+      <div class="hero-stat-label">Mbps no-FEC (Linux)</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-value green">690</div>
+      <div class="hero-stat-label">Mbps FEC+GSO (Linux)</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-value blue">15x</div>
+      <div class="hero-stat-label">addmul1 SIMD speedup</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-value purple">5</div>
+      <div class="hero-stat-label">architectures</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-value orange">6</div>
+      <div class="hero-stat-label">release binaries</div>
+    </div>
+  </div>
+
+  <nav>
+    <a href="#throughput">Throughput</a>
+    <a href="#platforms">Platforms</a>
+    <a href="#x86-micro">x86_64 Microbench</a>
+    <a href="#ppc-micro">PowerPC Microbench</a>
+    <a href="#windows">Windows</a>
+    <a href="dev/throughput/" class="external">Throughput Trends &rarr;</a>
+    <a href="dev/bench/" class="external">Microbench Trends &rarr;</a>
+    <a href="dev/bench-powerpc/" class="external">PPC Trends &rarr;</a>
+    <a href="https://github.com/slartibardfast/UDPspeeder/releases" class="external">Releases &rarr;</a>
+  </nav>
+</div>
 </div>
 
-<!-- ===== x86_64: SIMD vs Scalar ===== -->
+<div class="container">
 
-<h2>x86_64: SIMD Optimized vs Scalar Baseline</h2>
-<p class="subtitle">GitHub Actions CI runner &mdash; AVX2 + SSE4.2 vs scalar</p>
+<!-- ===== Throughput ===== -->
+<h2 id="throughput">Tunnel Throughput (CI loopback)</h2>
+<p class="subtitle">GitHub Actions runner &mdash; UDP loopback, 1400B packets, median of 3 runs</p>
+
+<div class="summary">
+  <div class="summary-grid">
+    <div class="stat">
+      <div class="stat-value">+49%</div>
+      <div class="stat-label">no-FEC vs baseline</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">+21%</div>
+      <div class="stat-label">FEC with GSO</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">+85%</div>
+      <div class="stat-label">FEC vs baseline</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value blue">30:1</div>
+      <div class="stat-label">GSO send batching</div>
+    </div>
+  </div>
+</div>
+
+<h3>Linux &mdash; io_uring recv + GSO send slab</h3>
+<p class="subtitle" style="margin-bottom:0.8rem">Higher is better (Mbps)</p>
+
+<div id="throughput-chart"></div>
+
+<p class="note" style="margin-top:1rem">
+  GSO (<code>UDP_SEGMENT</code> cmsg, kernel 4.18+) packs 30 FEC shards into one sendmsg call.
+  One sk_buff + one route lookup instead of 30. Fallback to sendmmsg on older kernels.<br>
+  io_uring multishot recv (kernel 5.19+) pre-posts recv buffers. Fallback to recvfrom.<br>
+  <a href="dev/throughput/">Throughput trend dashboard &rarr;</a>
+</p>
+
+<hr class="section-sep">
+
+<!-- ===== Platforms ===== -->
+<h2 id="platforms">Platform &amp; Architecture Support</h2>
+<p class="subtitle">CI-validated on every push &mdash; 5 ISAs, 32 cross-architecture interop tests</p>
+
+<table class="platform-table">
+<thead>
+<tr>
+  <th>Architecture</th>
+  <th>SIMD Tier</th>
+  <th>CRC32C</th>
+  <th>Cook XOR</th>
+  <th>io_uring</th>
+  <th>GSO</th>
+  <th>Binary</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>x86_64</td>
+  <td><span class="chip chip-green">AVX2</span><span class="chip chip-green">SSSE3</span></td>
+  <td><span class="chip chip-green">SSE4.2 HW</span></td>
+  <td><span class="chip chip-green">SSE2 128b</span></td>
+  <td><span class="check">&#10003;</span></td>
+  <td><span class="check">&#10003;</span></td>
+  <td><span class="chip chip-gray">Linux static</span></td>
+</tr>
+<tr>
+  <td>aarch64</td>
+  <td><span class="chip chip-blue">NEON 2x</span></td>
+  <td><span class="chip chip-blue">ARMv8 HW</span></td>
+  <td><span class="chip chip-blue">NEON 128b</span></td>
+  <td><span class="check">&#10003;</span></td>
+  <td><span class="check">&#10003;</span></td>
+  <td><span class="chip chip-gray">Linux static</span></td>
+</tr>
+<tr>
+  <td>mips (big-endian)</td>
+  <td><span class="chip chip-gray">scalar</span></td>
+  <td><span class="chip chip-gray">SW slice8</span></td>
+  <td><span class="chip chip-gray">scalar</span></td>
+  <td><span class="dash">&mdash;</span></td>
+  <td><span class="check">&#10003;</span></td>
+  <td><span class="chip chip-gray">Linux static</span></td>
+</tr>
+<tr>
+  <td>PowerPC e500v2</td>
+  <td><span class="chip chip-purple">SPE 64b</span></td>
+  <td><span class="chip chip-gray">SW slice8</span></td>
+  <td><span class="chip chip-purple">SPE evxor</span></td>
+  <td><span class="dash">&mdash;</span></td>
+  <td><span class="check">&#10003;</span></td>
+  <td><span class="chip chip-gray">OpenWrt musl</span></td>
+</tr>
+<tr>
+  <td>RISC-V 64</td>
+  <td><span class="chip chip-gray">scalar</span></td>
+  <td><span class="chip chip-gray">SW slice8</span></td>
+  <td><span class="chip chip-gray">scalar</span></td>
+  <td><span class="dash">&mdash;</span></td>
+  <td><span class="check">&#10003;</span></td>
+  <td><span class="chip chip-gray">OpenWrt musl</span></td>
+</tr>
+<tr>
+  <td>Windows x86_64</td>
+  <td><span class="chip chip-green">AVX2</span><span class="chip chip-green">SSSE3</span></td>
+  <td><span class="chip chip-green">SSE4.2 HW</span></td>
+  <td><span class="chip chip-green">SSE2 128b</span></td>
+  <td><span class="chip chip-orange">IOCP</span></td>
+  <td><span class="cross">&#10007;</span></td>
+  <td><span class="chip chip-orange">wepoll .exe</span></td>
+</tr>
+</tbody>
+</table>
+
+<p class="note">
+  SIMD dispatch is runtime (CPUID/HWCAP). Scalar fallback always available.
+  32 cross-architecture interop tests (4 arch pairs &times; 4 FEC/key configs) pass on every CI push.<br>
+  <a href="https://github.com/slartibardfast/UDPspeeder/releases">Download release binaries &rarr;</a>
+</p>
+
+<hr class="section-sep">
+
+<!-- ===== x86_64 Microbenchmarks ===== -->
+<h2 id="x86-micro">x86_64: SIMD Optimized vs Scalar Baseline</h2>
+<p class="subtitle">GitHub Actions CI runner &mdash; AVX2 + SSE4.2 vs scalar &mdash; lower is better (ns/op)</p>
 
 <div class="summary">
   <div class="summary-grid">
@@ -93,14 +305,15 @@
 
 <p class="note">
   Baseline: commit <a href="https://github.com/slartibardfast/UDPspeeder/commit/0a87d34">0a87d34</a> (scalar) &mdash;
-  Optimized: commit <a href="https://github.com/slartibardfast/UDPspeeder/commit/2f0ac6a">2f0ac6a</a> (AVX2/SSSE3 + CRC32C SSE4.2 + pre-alloc)
+  Optimized: commit <a href="https://github.com/slartibardfast/UDPspeeder/commit/2f0ac6a">2f0ac6a</a> (AVX2/SSSE3 + CRC32C SSE4.2 + pre-alloc)<br>
+  <a href="dev/bench/">Microbench trend dashboard &rarr;</a>
 </p>
 
 <hr class="section-sep">
 
 <!-- ===== PowerPC e500v2 ===== -->
 
-<h2>PowerPC e500v2: CRC32C + SPE XOR vs Baseline (QEMU)</h2>
+<h2 id="ppc-micro">PowerPC e500v2: CRC32C + SPE XOR vs Baseline (QEMU)</h2>
 <p class="subtitle">qemu-ppc-static -cpu e500v2 on GitHub Actions &mdash; target: TP-Link TL-WDR4900</p>
 
 <div class="summary">
@@ -133,11 +346,92 @@
   Current: commit <a href="https://github.com/slartibardfast/UDPspeeder/commit/2f0ac6a">2f0ac6a</a><br>
   SPE (Signal Processing Extension): 64-bit <code>evldd</code>/<code>evxor</code>/<code>evstdd</code> for XOR cook.
   No AltiVec, no hardware CRC &mdash; addmul1 and CRC32C are software-only.<br>
-  Trend: <a href="dev/bench-powerpc/">current</a> &middot; <a href="dev/bench-powerpc-baseline/">baseline</a>
+  <a href="dev/bench-powerpc/">PPC trend (current)</a> &middot; <a href="dev/bench-powerpc-baseline/">PPC trend (baseline)</a>
 </p>
 
+<hr class="section-sep">
+
+<!-- ===== Windows ===== -->
+<h2 id="windows">Windows x86_64</h2>
+<p class="subtitle">Windows 10/11 &mdash; wepoll + IOCP pre-posted recv &mdash; no UDP GSO equivalent</p>
+
+<div class="summary">
+  <div class="summary-grid">
+    <div class="stat">
+      <div class="stat-value orange">193</div>
+      <div class="stat-label">Mbps no-FEC</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value orange">122</div>
+      <div class="stat-label">Mbps FEC 20:10</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value orange">+25%</div>
+      <div class="stat-label">IOCP recv gain</div>
+    </div>
+  </div>
+</div>
+
+<h3>Linux vs Windows Throughput</h3>
+<div id="windows-chart"></div>
+
+<p class="note" style="margin-top:1rem">
+  Windows has no <code>UDP_SEGMENT</code> (GSO) equivalent. Each FEC shard requires a separate <code>WSASendTo</code> call.<br>
+  IOCP pre-posted recv (Phase 9): <code>GetQueuedCompletionStatusEx</code> batch drain, +25% over blocking <code>recvfrom</code>.<br>
+  RIO slab send (Phase 10): prototyped but blocked &mdash; <code>WSA_FLAG_REGISTERED_IO</code> sockets reject overlapped
+  <code>WSARecvFrom</code> (error 10038). Hybrid IOCP recv + RIO send is impossible.<br>
+  No path to match Linux GSO performance without a Winsock API change.
+</p>
+
+</div><!-- .container -->
+
 <script>
-/* ===== x86_64 data ===== */
+/* ===== Throughput data (CI runner, latest) ===== */
+const throughputData = [
+  { label: "io_uring + GSO (no FEC)",     mbps: 970, cls: "green" },
+  { label: "io_uring + GSO (FEC 20:10)",  mbps: 690, cls: "green" },
+  { label: "io_uring + no GSO (FEC 20:10)", mbps: 571, cls: "gray" },
+  { label: "recvfrom baseline (no FEC)",   mbps: 650, cls: "gray" },
+  { label: "recvfrom baseline (FEC 20:10)", mbps: 355, cls: "gray" },
+];
+
+const tpMax = Math.max(...throughputData.map(d => d.mbps));
+const tpContainer = document.getElementById('throughput-chart');
+for (const d of throughputData) {
+  const row = document.createElement('div');
+  row.className = 'tp-row';
+  row.innerHTML = `
+    <div class="tp-label">${d.label}</div>
+    <div class="tp-bar-wrap"><div class="tp-bar ${d.cls}" style="width:${(d.mbps/tpMax*100).toFixed(1)}%"></div></div>
+    <div class="tp-val">${d.mbps} Mbps</div>
+  `;
+  tpContainer.appendChild(row);
+}
+
+/* ===== Windows comparison chart ===== */
+const winData = [
+  { label: "Linux io_uring+GSO (no FEC)",   mbps: 970, cls: "green" },
+  { label: "Linux io_uring+GSO (FEC)",      mbps: 690, cls: "green" },
+  { label: "Linux recvfrom (no FEC)",       mbps: 650, cls: "blue" },
+  { label: "Linux recvfrom (FEC)",          mbps: 355, cls: "blue" },
+  { label: "Windows IOCP (no FEC)",         mbps: 193, cls: "orange" },
+  { label: "Windows IOCP (FEC 20:10)",      mbps: 122, cls: "orange" },
+];
+
+const winMax = Math.max(...winData.map(d => d.mbps));
+const winContainer = document.getElementById('windows-chart');
+for (const d of winData) {
+  const row = document.createElement('div');
+  row.className = 'tp-row';
+  row.innerHTML = `
+    <div class="tp-label">${d.label}</div>
+    <div class="tp-bar-wrap"><div class="tp-bar ${d.cls}" style="width:${(d.mbps/winMax*100).toFixed(1)}%"></div></div>
+    <div class="tp-val">${d.mbps} Mbps</div>
+  `;
+  winContainer.appendChild(row);
+}
+
+/* ===== x86_64 microbench data ===== */
 const x86_baseline = {
   "addmul1/64B": 27.88, "addmul1/256B": 101.59, "addmul1/1024B": 415.79, "addmul1/1500B": 597.60,
   "rs_encode/k5/8/1500B": 9126.58, "rs_encode/k10/15/1500B": 30094.50,
@@ -174,7 +468,7 @@ const ppc_current = {
   "cook_crc32_only/1500B": 1982.94, "cook_obscure_only/1500B": 1414.86, "cook_xor_only/1500B": 1090.65
 };
 
-/* ===== Chart rendering ===== */
+/* ===== Chart rendering (lower is better) ===== */
 const fmt = (v) => v >= 100000 ? (v/1000).toFixed(0) + 'us' : v >= 1000 ? (v/1000).toFixed(1) + 'us' : v.toFixed(0) + 'ns';
 
 function renderSection(container, section, dataA, dataB, classA, classB, showSpeedup) {
@@ -254,7 +548,7 @@ for (const s of x86Sections) {
   renderSection(x86Container, s, x86_baseline, x86_optimized, 'before', 'after', true);
 }
 
-/* ===== PPC sections (baseline vs current, both QEMU) ===== */
+/* ===== PPC sections ===== */
 const ppcSections = [
   { title: "CRC32: old (zlib) vs CRC32C (software slicing-by-8)",
     keys: ["crc32/64B","crc32/256B","crc32/1024B","crc32/1500B"],
