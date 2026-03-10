@@ -523,19 +523,6 @@ int tunnel_server_event_loop() {
 #endif
 
 #ifdef __MINGW32__
-    /* RIO slab send: upgrade tunnel socket for zero-copy FEC send. */
-    int rio_send_upgraded = 0;
-    if (!use_batch_recv && getenv("UDPSPEEDER_USE_RIO_SEND")) {
-        if (rio_upgrade_listen_socket(local_listen_fd,
-                                       (struct sockaddr *)&local_addr.inner,
-                                       local_addr.get_len()) == 0) {
-            rio_send_upgraded = 1;
-            mylog(log_info, "rio_slab: upgraded tunnel socket for RIO send\n");
-        } else {
-            mylog(log_info, "rio_slab: socket upgrade failed, using WSASendTo\n");
-        }
-    }
-
     /* IOCP is default (+25% throughput). RIO opt-in via UDPSPEEDER_USE_RIO=1. */
     if (!use_batch_recv && !getenv("UDPSPEEDER_USE_RIO") &&
         iocp_init(&server_iocp_ctx, 32) == 0) {
@@ -628,22 +615,6 @@ int tunnel_server_event_loop() {
     if (slab_pool_init(&server_slab_pool, 4, slab_max_segments, buf_len) == 0) {
         g_slab_pool = &server_slab_pool;
 
-#ifdef __MINGW32__
-        if (rio_send_upgraded && server_slab_pool.pool_mem) {
-            static rio_slab_ctx_t server_rio_slab;
-            size_t slab_bytes = (size_t)slab_max_segments * buf_len * 4;
-            if (rio_slab_init(&server_rio_slab, server_slab_pool.pool_mem,
-                              (int)slab_bytes, 512) == 0) {
-                if (rio_slab_add_socket(&server_rio_slab,
-                                         (SOCKET)local_listen_fd) == 0) {
-                    server_slab_pool.backend_ctx = &server_rio_slab;
-                    mylog(log_info, "rio_slab: active for server send\n");
-                } else {
-                    rio_slab_destroy(&server_rio_slab);
-                }
-            }
-        }
-#endif
     }
 
     ev_run(loop, 0);

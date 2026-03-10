@@ -54,7 +54,6 @@ struct send_slab_pool_t {
     slab_backend_t backend;
 
     int    gso_available;  /* 1 if UDP GSO probe succeeded */
-    void  *backend_ctx;    /* opaque platform-specific state */
 };
 
 /*

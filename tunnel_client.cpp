@@ -419,25 +419,6 @@ int tunnel_client_event_loop() {
 #endif
 
 #ifdef __MINGW32__
-    /* RIO slab send: upgrade remote socket to WSA_FLAG_REGISTERED_IO
-     * BEFORE IOCP init, so IOCP can use the upgraded socket for recv
-     * while RIO handles send from slab memory (zero-copy). */
-    int rio_send_upgraded = 0;
-    if (!use_batch_recv && getenv("UDPSPEEDER_USE_RIO_SEND")) {
-        fd_manager.fd64_close(remote_fd64);
-        if (rio_upgrade_connected_socket(remote_fd,
-                                          (struct sockaddr *)&remote_addr.inner,
-                                          remote_addr.get_len()) == 0) {
-            remote_fd64 = fd_manager.create(remote_fd);
-            rio_send_upgraded = 1;
-            mylog(log_info, "rio_slab: upgraded remote socket for RIO send\n");
-        } else {
-            /* Upgrade failed — recreate normal socket */
-            remote_fd64 = fd_manager.create(remote_fd);
-            mylog(log_info, "rio_slab: socket upgrade failed, using WSASendTo\n");
-        }
-    }
-
     /* IOCP pre-posting is the default (+25% throughput over baseline).
      * RIO available as opt-in via UDPSPEEDER_USE_RIO=1 env var for
      * experimentation — currently only +4% and requires socket upgrades. */
@@ -573,21 +554,6 @@ int tunnel_client_event_loop() {
     if (slab_pool_init(&client_slab_pool, 4, slab_max_segments, buf_len) == 0) {
         g_slab_pool = &client_slab_pool;
 
-#ifdef __MINGW32__
-        if (rio_send_upgraded && client_slab_pool.pool_mem) {
-            static rio_slab_ctx_t client_rio_slab;
-            size_t slab_bytes = (size_t)slab_max_segments * buf_len * 4;
-            if (rio_slab_init(&client_rio_slab, client_slab_pool.pool_mem,
-                              (int)slab_bytes, 512) == 0) {
-                if (rio_slab_add_socket(&client_rio_slab, (SOCKET)remote_fd) == 0) {
-                    client_slab_pool.backend_ctx = &client_rio_slab;
-                    mylog(log_info, "rio_slab: active for client send\n");
-                } else {
-                    rio_slab_destroy(&client_rio_slab);
-                }
-            }
-        }
-#endif
     }
 
     mylog(log_info, "now listening at %s\n", local_addr.get_str());

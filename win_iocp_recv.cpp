@@ -32,8 +32,16 @@ static void iocp_repost(iocp_buf_t *pb) {
     }
     /* ret == 0 means immediate completion (queued to IOCP).
      * ret == SOCKET_ERROR + WSA_IO_PENDING means pending (normal).
-     * Other errors: buffer won't complete, but we can't do much here. */
-    (void)ret;
+     * Other errors: buffer won't complete. */
+    if (ret == SOCKET_ERROR) {
+        int err = WSAGetLastError();
+        if (err != WSA_IO_PENDING) {
+            mylog(log_warn, "iocp: WSARecv%s failed on socket %llu (tag=%d, err=%d)\n",
+                  (pb->tag_type == IOCP_TAG_CLIENT_LOCAL ||
+                   pb->tag_type == IOCP_TAG_SERVER_LOCAL) ? "From" : "",
+                  (unsigned long long)pb->socket, pb->tag_type, err);
+        }
+    }
 }
 
 int iocp_init(iocp_ctx_t *ctx, int bufs_per_socket) {
