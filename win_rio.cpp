@@ -500,4 +500,189 @@ void rio_destroy(rio_ctx_t *ctx) {
     ctx->available = 0;
 }
 
+/* ---- RIO slab send (zero-copy from slab memory) ----------------------- */
+
+int rio_slab_init(rio_slab_ctx_t *ctx, char *slab_mem, int slab_bytes,
+                  int max_in_flight) {
+    memset(ctx, 0, sizeof(*ctx));
+    ctx->send_cq = RIO_INVALID_CQ;
+    ctx->slab_buf_id = RIO_INVALID_BUFFERID;
+    ctx->addr_buf_id = RIO_INVALID_BUFFERID;
+
+    if (getenv("UDPSPEEDER_NO_RIO")) {
+        mylog(log_info, "rio_slab: disabled by UDPSPEEDER_NO_RIO\n");
+        return -1;
+    }
+
+    /* Load RIO function table */
+    SOCKET tmp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (tmp == INVALID_SOCKET) return -1;
+
+    DWORD bytes = 0;
+    ctx->fn.cbSize = sizeof(ctx->fn);
+    int ret = WSAIoctl(tmp, SIO_GET_MULTIPLE_EXTENSION_FUNCTION_POINTER,
+                       (void *)&wsaid_rio, sizeof(wsaid_rio),
+                       &ctx->fn, sizeof(ctx->fn), &bytes, NULL, NULL);
+    closesocket(tmp);
+    if (ret == SOCKET_ERROR || bytes != sizeof(ctx->fn)) {
+        mylog(log_info, "rio_slab: RIO not available\n");
+        return -1;
+    }
+
+    /* Create send-only CQ */
+    ctx->max_in_flight = max_in_flight;
+    ctx->send_cq = ctx->fn.RIOCreateCompletionQueue(max_in_flight + 64, NULL);
+    if (ctx->send_cq == RIO_INVALID_CQ) {
+        mylog(log_warn, "rio_slab: CreateCompletionQueue failed (%d)\n",
+              WSAGetLastError());
+        return -1;
+    }
+
+    /* Register slab memory */
+    ctx->slab_base = slab_mem;
+    ctx->slab_size = slab_bytes;
+    ctx->slab_buf_id = ctx->fn.RIORegisterBuffer(slab_mem, slab_bytes);
+    if (ctx->slab_buf_id == RIO_INVALID_BUFFERID) {
+        mylog(log_warn, "rio_slab: RIORegisterBuffer(slab) failed (%d)\n",
+              WSAGetLastError());
+        rio_slab_destroy(ctx);
+        return -1;
+    }
+
+    /* Address buffer — one slot, reused per batch (synchronous send pattern) */
+    ctx->addr_buf = (char *)calloc(1, RIO_ADDR_SIZE);
+    if (!ctx->addr_buf) {
+        rio_slab_destroy(ctx);
+        return -1;
+    }
+    ctx->addr_buf_id = ctx->fn.RIORegisterBuffer(ctx->addr_buf,
+                                                   (DWORD)RIO_ADDR_SIZE);
+    if (ctx->addr_buf_id == RIO_INVALID_BUFFERID) {
+        mylog(log_warn, "rio_slab: RIORegisterBuffer(addr) failed (%d)\n",
+              WSAGetLastError());
+        rio_slab_destroy(ctx);
+        return -1;
+    }
+
+    ctx->available = 1;
+    mylog(log_info, "rio_slab: initialized (slab=%d bytes, max_in_flight=%d)\n",
+          slab_bytes, max_in_flight);
+    return 0;
+}
+
+int rio_slab_add_socket(rio_slab_ctx_t *ctx, SOCKET s) {
+    if (!ctx->available) return -1;
+    if (ctx->socket_count >= 4) return -1;
+
+    int max_send = ctx->max_in_flight / 2;
+    if (max_send < 64) max_send = 64;
+
+    /* Send-only RQ: 0 recv, max_send sends, no recv CQ */
+    RIO_RQ rq = ctx->fn.RIOCreateRequestQueue(
+        s,
+        0,                  /* MaxOutstandingReceive */
+        1,                  /* MaxReceiveDataBuffers */
+        max_send,           /* MaxOutstandingSend */
+        1,                  /* MaxSendDataBuffers */
+        ctx->send_cq,       /* ReceiveCQ (unused but required) */
+        ctx->send_cq,       /* SendCQ */
+        NULL                /* SocketContext */
+    );
+    if (rq == RIO_INVALID_RQ || rq == NULL) {
+        mylog(log_warn, "rio_slab: CreateRequestQueue failed (%d)\n",
+              WSAGetLastError());
+        return -1;
+    }
+
+    int idx = ctx->socket_count++;
+    ctx->sockets[idx].rq = rq;
+    ctx->sockets[idx].sock = s;
+
+    mylog(log_info, "rio_slab: socket %llu added for send (max_send=%d)\n",
+          (unsigned long long)s, max_send);
+    return 0;
+}
+
+int rio_slab_send_batch(rio_slab_ctx_t *ctx, SOCKET fd,
+                        int seg_base_offset, int seg_size, int count,
+                        struct sockaddr *addr, int addr_len) {
+    if (!ctx->available || count <= 0) return 0;
+
+    /* Find RQ for this socket */
+    RIO_RQ rq = RIO_INVALID_RQ;
+    for (int i = 0; i < ctx->socket_count; i++) {
+        if (ctx->sockets[i].sock == fd) {
+            rq = ctx->sockets[i].rq;
+            break;
+        }
+    }
+    if (rq == RIO_INVALID_RQ) return 0;
+
+    /* Copy address into registered buffer (one copy for entire batch) */
+    RIO_BUF addr_rio = { RIO_INVALID_BUFFERID, 0, 0 };
+    PRIO_BUF addr_ptr = NULL;
+    if (addr && addr_len > 0) {
+        memcpy(ctx->addr_buf, addr, addr_len);
+        addr_rio.BufferId = ctx->addr_buf_id;
+        addr_rio.Offset = 0;
+        addr_rio.Length = addr_len;
+        addr_ptr = &addr_rio;
+    }
+
+    int queued = 0;
+    for (int i = 0; i < count; i++) {
+        /* RIO_BUF points directly into slab — no memcpy */
+        RIO_BUF data_buf;
+        data_buf.BufferId = ctx->slab_buf_id;
+        data_buf.Offset = seg_base_offset + i * seg_size;
+        data_buf.Length = seg_size;
+
+        DWORD flags = (i < count - 1) ? RIO_MSG_DEFER : 0;
+
+        BOOL ret = ctx->fn.RIOSendEx(rq, &data_buf, 1,
+                                       NULL, addr_ptr,
+                                       NULL, NULL, flags, NULL);
+        if (ret) {
+            queued++;
+            ctx->sends_in_flight++;
+        } else {
+            mylog(log_debug, "rio_slab: RIOSendEx failed (%d)\n",
+                  WSAGetLastError());
+            break;
+        }
+    }
+
+    return queued;
+}
+
+int rio_slab_drain(rio_slab_ctx_t *ctx) {
+    if (!ctx->available) return 0;
+
+    RIORESULT results[64];
+    int total = 0;
+
+    for (;;) {
+        ULONG count = ctx->fn.RIODequeueCompletion(ctx->send_cq, results, 64);
+        if (count == 0 || count == RIO_CORRUPT_CQ) break;
+        total += (int)count;
+        ctx->sends_in_flight -= (int)count;
+    }
+
+    return total;
+}
+
+void rio_slab_destroy(rio_slab_ctx_t *ctx) {
+    if (!ctx) return;
+
+    if (ctx->send_cq != RIO_INVALID_CQ && ctx->fn.RIOCloseCompletionQueue)
+        ctx->fn.RIOCloseCompletionQueue(ctx->send_cq);
+    if (ctx->slab_buf_id != RIO_INVALID_BUFFERID && ctx->fn.RIODeregisterBuffer)
+        ctx->fn.RIODeregisterBuffer(ctx->slab_buf_id);
+    if (ctx->addr_buf_id != RIO_INVALID_BUFFERID && ctx->fn.RIODeregisterBuffer)
+        ctx->fn.RIODeregisterBuffer(ctx->addr_buf_id);
+
+    free(ctx->addr_buf);
+    ctx->available = 0;
+}
+
 #endif /* __MINGW32__ */

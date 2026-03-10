@@ -1,4 +1,5 @@
 #include "send_slab.h"
+#include "win_rio.h"
 #include "log.h"
 
 #include <string.h>
@@ -281,8 +282,8 @@ int slab_cook_pack_submit(send_slab_pool_t *pool,
         }
     }
 
-    /* --- GSO path: pack contiguously into slab, one sendmsg --- */
-    if (pool->gso_available && uniform && count > 1) {
+    /* --- Accelerated path: pack contiguously into slab, batch send --- */
+    if ((pool->gso_available || pool->backend_ctx) && uniform && count > 1) {
         int slab_id = slab_pool_alloc(pool);
         if (slab_id >= 0) {
             send_slab_t *s = &pool->slabs[slab_id];
@@ -293,6 +294,19 @@ int slab_cook_pack_submit(send_slab_pool_t *pool,
 
             s->seg_count = count;
             s->seg_size = seg_size;
+
+#ifdef __MINGW32__
+            /* RIO slab send: zero-copy from slab offsets */
+            if (pool->backend_ctx) {
+                rio_slab_ctx_t *rctx = (rio_slab_ctx_t *)pool->backend_ctx;
+                int base_offset = (int)(s->buf - pool->pool_mem);
+                int sent = rio_slab_send_batch(rctx, (SOCKET)fd,
+                                                base_offset, seg_size, count,
+                                                addr, (int)addrlen);
+                s->seg_count = 0;
+                return sent;
+            }
+#endif
 
             return pool->backend.submit(pool, slab_id, fd, addr, addrlen);
         }
@@ -351,10 +365,22 @@ int slab_cook_pack_submit(send_slab_pool_t *pool,
 }
 
 int slab_pool_drain(send_slab_pool_t *pool) {
+#ifdef __MINGW32__
+    if (pool->backend_ctx) {
+        rio_slab_ctx_t *rctx = (rio_slab_ctx_t *)pool->backend_ctx;
+        return rio_slab_drain(rctx);
+    }
+#endif
     return pool->backend.drain(pool);
 }
 
 void slab_pool_destroy(send_slab_pool_t *pool) {
+#ifdef __MINGW32__
+    if (pool->backend_ctx) {
+        rio_slab_destroy((rio_slab_ctx_t *)pool->backend_ctx);
+        pool->backend_ctx = NULL;
+    }
+#endif
     if (pool->backend.destroy)
         pool->backend.destroy(pool);
 

@@ -265,6 +265,73 @@ void rio_destroy(rio_ctx_t *ctx);
 /* Global pointer — set in tunnel event loop, used by packet.cpp */
 extern rio_ctx_t *g_rio_ctx;
 
+/* --- RIO slab send (zero-copy from slab memory) ------------------------- */
+
+/*
+ * rio_slab_ctx_t: lightweight RIO context for send-only from slab memory.
+ * Used by send_slab.cpp to send FEC shards directly from the slab without
+ * memcpy into separate registered buffers.
+ *
+ * Requires socket with WSA_FLAG_REGISTERED_IO. Can coexist with IOCP recv
+ * on the same socket (IOCP uses overlapped WSARecvFrom, RIO uses RIOSendEx).
+ */
+struct rio_slab_ctx_t {
+    int available;
+
+    RIO_EXTENSION_FUNCTION_TABLE fn;
+    RIO_CQ send_cq;             /* send-only completion queue */
+
+    RIO_BUFFERID slab_buf_id;   /* registered slab pool memory */
+    char *slab_base;            /* base pointer of registered slab memory */
+    int slab_size;              /* total registered bytes */
+
+    RIO_BUFFERID addr_buf_id;   /* registered address buffer (small) */
+    char *addr_buf;             /* address storage for sendto */
+
+    /* Per-socket send request queues */
+    struct rio_slab_socket_t {
+        RIO_RQ rq;
+        SOCKET sock;
+    } sockets[4];
+    int socket_count;
+
+    int sends_in_flight;        /* total across all sockets */
+    int max_in_flight;          /* limit per CQ */
+};
+
+/*
+ * rio_slab_init: Load RIO functions, create send CQ, register slab memory.
+ * slab_mem/slab_bytes: the slab pool's contiguous allocation.
+ * Returns 0 on success.
+ */
+int rio_slab_init(rio_slab_ctx_t *ctx, char *slab_mem, int slab_bytes,
+                  int max_in_flight);
+
+/*
+ * rio_slab_add_socket: Create send-only RQ for a socket.
+ * Socket must have WSA_FLAG_REGISTERED_IO.
+ */
+int rio_slab_add_socket(rio_slab_ctx_t *ctx, SOCKET s);
+
+/*
+ * rio_slab_send_batch: Send segments directly from slab memory.
+ * seg_base: offset from slab_base to first segment.
+ * seg_size: bytes per segment (uniform).
+ * count: number of segments.
+ * No memcpy — RIO_BUF references slab offsets directly.
+ */
+int rio_slab_send_batch(rio_slab_ctx_t *ctx, SOCKET fd,
+                        int seg_base_offset, int seg_size, int count,
+                        struct sockaddr *addr, int addr_len);
+
+/*
+ * rio_slab_drain: Dequeue send completions. Non-blocking.
+ * Returns number of completions drained.
+ */
+int rio_slab_drain(rio_slab_ctx_t *ctx);
+
+void rio_slab_destroy(rio_slab_ctx_t *ctx);
+
 #else /* !__MINGW32__ */
 
 /* Stubs for non-Windows */
@@ -273,6 +340,12 @@ static inline int rio_init(rio_ctx_t *ctx, int, int, int, int) {
     ctx->available = 0; return -1;
 }
 static inline void rio_destroy(rio_ctx_t *) {}
+
+struct rio_slab_ctx_t { int available; };
+static inline int rio_slab_init(rio_slab_ctx_t *ctx, char *, int, int) {
+    ctx->available = 0; return -1;
+}
+static inline void rio_slab_destroy(rio_slab_ctx_t *) {}
 
 #define RIO_TAG_CLIENT_LOCAL   0x01
 #define RIO_TAG_CLIENT_REMOTE  0x02
